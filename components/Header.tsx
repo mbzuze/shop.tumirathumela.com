@@ -10,6 +10,15 @@ function Header() {
 
     const { user } = useUser();
 
+    const createClerkPasskey = async () => {
+        try {
+            const response = await user?.createPasskey();
+            console.log(response);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     return (
         <header className="flex flex-wrap justify-between items-center px-4 py-2">
             {/* Top Row*/}
@@ -66,6 +75,15 @@ function Header() {
                             </div>
                         ) : (
                             <SignInButton mode="modal" />
+                        )}
+
+                        {user?.passkeys.length === 0 && (
+                            <button
+                                onClick={createClerkPasskey}
+                                className="bg-white hover:bg-blue-700 hover:text-white animate-pulse text-blue-500 font-bold py-2 px-4 rounded-md border border-blue-300 "
+                            >
+                                Create Passkey
+                            </button>
                         )}
                     </ClerkLoaded>
 
