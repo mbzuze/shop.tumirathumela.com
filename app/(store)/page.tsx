@@ -1,6 +1,9 @@
 import { Button } from "@/components/ui/button";
 
-export default function Home() {
+export default async function Home() {
+
+  const products = await getAllProducts();
+
   return (
     <html>
       <body>
