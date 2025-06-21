@@ -92,7 +92,7 @@ export const orderType = defineType({
                         select: {
                             product: 'product.name',
                             quantity: 'quantity',
-                            image: 'product.images[0]',
+                            image: 'product.image',
                             price: 'product.price',
                             currency: 'product.currency',
                         },
