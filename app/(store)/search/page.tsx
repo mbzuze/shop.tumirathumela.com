@@ -1,61 +1,40 @@
-// import { useState } from "react";
-// import { useRouter, useSearchParams } from "next/navigation";
-// import { Product } from "@/types";
-import Container from "@/components/ui/container";
-import ProductCard from "@/components/ui/product-card";
-import NoResults from "@/components/ui/no-results";
+import ProductsView from "@/components/ProductsView";
+import { searchProductsByName } from "@/sanity/lib/products/searchProductsByName";
 
 async function SearchPage({
     searchParams,
 }: {
     searchParams: { query: string; };
 }) {
-
-    // const {query} = await searchParams;
-
-    // const [products, setProducts] = useState<Product[]>([]);
-    // const [loading, setLoading] = useState(true);
-    const loading = false;
     const { query } = await searchParams;
+    const products = await searchProductsByName(query);
 
-    // const fetchSearchResults = async () => {
-    //     try {
-    //         setLoading(true);
-    //         const response = await fetch(`/api/search?query=${searchQuery}`);
-    //         const data = await response.json();
-    //         setProducts(data);
-    //     } catch (error) {
-    //         console.error("Error fetching search results:", error);
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // };
+    if  (!products || products.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-top min-h-screen bg-gray-100 p-4">
+                <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-4xl">
+                        <h1 className="text-3xl font-bold mb-6 text-center">
+                            No results found for: {query}
+                        </h1>
+                        <p className="text-gray-600 text-center">
+                            Try searching with different keywords or check your spelling.
+                        </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="bg-white">
-            {/* <Container> */}
-            <div className="px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-4">
-                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-                        Search Results for: {query}
-                    </h1>
-                </div>
-                {loading ? (
-                    <div>Loading...</div>
-                ) :
-                    // products.length === 0 ? (
-                    //     <NoResults />
-                    // ) :
-                    (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {/* {products.map((product) => (
-                            <ProductCard key={product.id} data={product} />
-                        ))} */}
+            <div className="flex flex-col items-center justify-top min-h-screen bg-gray-100 p-4">
+                <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-4xl">
+                        <h1 className="text-3xl font-bold mb-6 text-center">
+                            Search results found for: {query}
+                        </h1>
+                        <div className="text-gray-600 text-center">
+                            <ProductsView products={products} categories={[]} />
                         </div>
-                    )}
+                </div>
             </div>
-            {/* </Container> */}
-        </div>
     );
 }
 
