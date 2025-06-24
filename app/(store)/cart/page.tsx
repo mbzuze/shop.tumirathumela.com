@@ -1,5 +1,6 @@
 "use client";
 
+import { createCheckoutSession } from "@/actions/createCheckoutSession";
 import AddToBasketButton from "@/components/AddToBasketButton";
 import Loader from "@/components/Loader";
 import { imageUrl } from "@/lib/imageUrl";
@@ -8,6 +9,13 @@ import { SignInButton, useAuth, useUser } from "@clerk/nextjs";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
+
+export type Metadata = {
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  clerkUserId: string;
+};
 
 function BasketPage() {
   const groupedItems = useBasketStore((state) => state.getGroupedItems());
@@ -43,18 +51,30 @@ function BasketPage() {
     );
   }
 
-  function handleCheckout() {
+  const handleCheckout = async () => {
     if (!isSignedIn) return;
     setIsLoading(true);
 
     try {
       // TODO: Implement checkout logic
+      const metadata: Metadata = {
+        orderNumber: crypto.randomUUID(),
+        customerName: user?.fullName ?? "Unknown",
+        customerEmail: user?.emailAddresses[0].emailAddress ?? "Unknown",
+        clerkUserId: user!.id,
+      };
+
+      const checkoutUrl = await createCheckoutSession(groupedItems, metadata);
+
+      if (checkoutUrl) {
+        router.push(checkoutUrl);
+      }
     } catch (error) {
       console.error(error);
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="container mx-auto p-4 max-w-6xl">
