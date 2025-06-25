@@ -35,37 +35,60 @@ export async function createCheckoutSession(
       customerId = customers.data[0].id;
     }
 
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      customer_creation: customerId ? undefined : "always",
-      customer_email: !customerId ? metadata.customerEmail : undefined,
+    const payload = {
+      amount: Math.round(
+        items.reduce(
+          (acc, item) => acc + item.product.price! * item.quantity,
+          0,
+        ) * 100,
+      ),
+      currency: "ZAR",
       metadata,
-      mode: "payment",
-      allow_promotion_codes: true,
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}&orderNumber=${metadata.orderNumber}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cart`,
-      line_items: items.map((item) => ({
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: item.product.name || "Unnamed Product",
-            description: `Product ID: ${item.product._id}`,
-            metadata: {
-              id: item.product._id,
-            },
-            images: item.product.image
-              ? [imageUrl(item.product.image).url()]
-              : undefined,
-          },
-          unit_amount: item.product.price
-            ? item.product.price * 100
-            : undefined,
-        },
+      // items, // Make sure this line is included
+      lineItems: items.map((item) => ({
+        displayName: item.product.name || "Unnamed Product",
+        description: `Product ID: ${item.product._id}`,
         quantity: item.quantity,
+        pricingDetails: {
+          price: Math.round(item.product.price! * item.quantity * 100),
+        },
       })),
-    });
+      cancelUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/cart`,
+      successUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/success?order=${metadata.orderNumber}`,
+      failureUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/failure`,
+    };
 
-    return session.url;
+    // console.log("Payload being sent:", JSON.stringify(payload, null, 2));
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/checkout`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Response error:", errorText);
+        throw new Error(
+          `HTTP error! status: ${response.status}, message: ${errorText}`,
+        );
+      }
+
+      const responseData = await response.json();
+      console.log("Webhook response:", responseData);
+
+      const { redirectUrl } = responseData;
+      return redirectUrl;
+    } catch (error) {
+      console.error("Fetch error:", error);
+      throw error;
+    }
   } catch (error) {
     console.error(error);
     throw new Error("Failed to create checkout session.");
