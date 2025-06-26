@@ -52,6 +52,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
         // Add your payment completion logic here
         // For example: update database, send confirmation email, etc.
+        try {
+          const order = await createOrderInSanity(webhookData);
+          console.log("Order created in Sanity:", order);
+        } catch (error) {
+          console.error("Error creating order in Sanity:", error);
+          return new NextResponse("Error creating order", { status: 500 });
+        }
 
         const successResponse = NextResponse.json({
           success: true,
@@ -88,4 +95,47 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     console.error("Webhook verification failed:", err);
     return new NextResponse("Invalid request", { status: 400 });
   }
+}
+
+async function createOrderInSanity(webhookData: any) {
+  // Example: Use fetch to send a POST request to your Sanity API
+  const SANITY_PROJECT_ID = process.env.SANITY_PROJECT_ID;
+  const SANITY_DATASET = process.env.SANITY_DATASET;
+  const SANITY_TOKEN = process.env.SANITY_API_TOKEN;
+
+  if (!SANITY_PROJECT_ID || !SANITY_DATASET || !SANITY_TOKEN) {
+    throw new Error("Sanity environment variables are not set");
+  }
+
+  // Construct the order document
+  const orderDoc = {
+    _type: "order",
+    paymentId: webhookData.data?.id,
+    amount: webhookData.data?.amount,
+    currency: webhookData.data?.currency,
+    status: webhookData.data?.status,
+    createdAt: new Date().toISOString(),
+    // Add more fields as needed
+  };
+
+  const url = `https://${SANITY_PROJECT_ID}.api.sanity.io/v2021-06-07/data/mutate/${SANITY_DATASET}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${SANITY_TOKEN}`,
+    },
+    body: JSON.stringify({
+      mutations: [{ create: orderDoc }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Sanity API error: ${errorText}`);
+  }
+
+  const result = await response.json();
+  return result;
 }
