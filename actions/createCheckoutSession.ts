@@ -1,7 +1,6 @@
 "use server";
 
 import { BasketItem } from "@/store/store";
-import stripe from "@/lib/stripe";
 import { imageUrl } from "@/lib/imageUrl";
 
 export type Metadata = {
@@ -9,6 +8,9 @@ export type Metadata = {
   customerName: string;
   customerEmail: string;
   clerkUserId: string;
+  items: string; // Serialized items
+  couponCode?: string;
+  discountAmount?: number;
 };
 
 export type GroupedBasketItem = {
@@ -25,25 +27,32 @@ export async function createCheckoutSession(
     if (itemsWithoutPrice.length > 0) {
       throw new Error("One or more items do not have a price.");
     }
-    const customers = await stripe.customers.list({
-      email: metadata.customerEmail,
-      limit: 1,
-    });
 
-    let customerId: string | undefined;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
+    const subtotal = items.reduce(
+      (acc, item) => acc + item.product.price! * item.quantity,
+      0,
+    );
+
+    let totalAmount = subtotal;
+    if (metadata.discountAmount && metadata.discountAmount > 0) {
+        // Assume discountAmount is a percentage (e.g., 20 for 20%)
+        totalAmount = subtotal - (subtotal * metadata.discountAmount) / 100;
     }
 
     const payload = {
-      amount: Math.round(
-        items.reduce(
-          (acc, item) => acc + item.product.price! * item.quantity,
-          0,
-        ) * 100,
-      ),
+      amount: Math.round(totalAmount * 100), // Amount in cents
       currency: "ZAR",
-      metadata,
+      subtotalAmount: Math.round(subtotal * 100),
+      totalDiscount: Math.round((subtotal * (metadata.discountAmount || 0)) / 100 * 100),
+      metadata: {
+        ...metadata,
+        items: JSON.stringify(
+          items.map((item) => ({
+            id: item.product._id,
+            quantity: item.quantity,
+          })),
+        ),
+      },
       // items, // Make sure this line is included
       lineItems: items.map((item) => ({
         displayName: item.product.name || "Unnamed Product",

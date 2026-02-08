@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       JSON.stringify(requestBody, null, 2),
     );
 
-    const { items, metadata, cancelUrl, failureUrl } = requestBody;
+    const { items, metadata, cancelUrl, failureUrl, successUrl, lineItems, subtotalAmount, totalDiscount } = requestBody;
 
     // 1) Basic validation
     // if (!items?.length) {
@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
     //   },
     //   0,
     // );
-    const totalDiscount = metadata.totalDiscount ?? 0;
     const totalTaxAmount = metadata.totalTax ?? 0;
     // const amount = subtotalAmount - totalDiscount + totalTaxAmount;
 
@@ -66,6 +65,13 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         amount: requestBody.amount,
         currency: "ZAR",
+        metadata,
+        successUrl,
+        cancelUrl,
+        failureUrl,
+        lineItems,
+        subtotalAmount,
+        totalDiscount,
       }),
     });
 
