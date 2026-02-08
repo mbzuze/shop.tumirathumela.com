@@ -13,19 +13,8 @@ export const orderType = defineType({
             validation: (Rule) => Rule.required(),
         }),
         defineField({
-            name: 'stripeCheckoutSessionId',
-            title: 'Stripe Checkout Session ID',
-            type: 'string',
-        }),
-        defineField({
-            name: 'stripeCustomerId',
-            title: 'Stripe Customer ID',
-            type: 'string',
-            validation: (Rule) => Rule.required(),
-        }),
-        defineField({
-            name: 'stripePaymentIntentId',
-            title: 'Stripe Payment Intent ID',
+            name: 'yocoPaymentId',
+            title: 'Yoco Payment ID',
             type: 'string',
             validation: (Rule) => Rule.required(),
         }),
@@ -112,6 +101,16 @@ export const orderType = defineType({
             name: 'total',
             title: 'Total Amount',
             type: 'number',
+        }),
+        defineField({
+            name: 'discountAmount',
+            title: 'Discount Amount',
+            type: 'number',
+        }),
+        defineField({
+            name: 'couponCode',
+            title: 'Coupon Code',
+            type: 'string',
         }),
         defineField({
             name: 'status',
