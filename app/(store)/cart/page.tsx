@@ -1,6 +1,7 @@
 "use client";
 
 import { createCheckoutSession } from "@/actions/createCheckoutSession";
+import { validateCoupon } from "@/actions/validateCoupon";
 import AddToBasketButton from "@/components/AddToBasketButton";
 import Loader from "@/components/Loader";
 import { imageUrl } from "@/lib/imageUrl";
@@ -15,6 +16,8 @@ export type Metadata = {
   customerName: string;
   customerEmail: string;
   clerkUserId: string;
+  couponCode?: string;
+  discountAmount?: number;
 };
 
 function BasketPage() {
@@ -25,6 +28,10 @@ function BasketPage() {
 
   const [isClient, setClient] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const [couponError, setCouponError] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState("");
 
   useEffect(() => {
     setClient(true);
@@ -51,17 +58,32 @@ function BasketPage() {
     );
   }
 
+  const handleApplyCoupon = async () => {
+    if (!couponCode) return;
+    setCouponError("");
+
+    const result = await validateCoupon(couponCode);
+    if (result.isValid) {
+      setDiscount(result.discountAmount!);
+      setAppliedCoupon(result.code!);
+      setCouponCode("");
+    } else {
+      setCouponError(result.message!);
+    }
+  };
+
   const handleCheckout = async () => {
     if (!isSignedIn) return;
     setIsLoading(true);
 
     try {
-      // TODO: Implement checkout logic
       const metadata: Metadata = {
         orderNumber: crypto.randomUUID(),
         customerName: user?.fullName ?? "Unknown",
         customerEmail: user?.emailAddresses[0].emailAddress ?? "Unknown",
         clerkUserId: user!.id,
+        couponCode: appliedCoupon,
+        discountAmount: discount,
       };
 
       const checkoutUrl = await createCheckoutSession(groupedItems, metadata);
@@ -75,6 +97,9 @@ function BasketPage() {
       setIsLoading(false);
     }
   };
+
+  const totalPrice = useBasketStore.getState().getTotalPrice();
+  const finalPrice = Math.max(0, totalPrice - (totalPrice * discount) / 100);
 
   return (
     <div className="container mx-auto p-4 max-w-6xl">
@@ -126,12 +151,50 @@ function BasketPage() {
                 {groupedItems.reduce((total, item) => total + item.quantity, 0)}
               </span>
             </p>
+            <p className="flex justify-between">
+              <span>Subtotal:</span>
+              <span>${totalPrice.toFixed(2)}</span>
+            </p>
+            {discount > 0 && (
+              <p className="flex justify-between text-green-600">
+                <span>Discount ({discount}%):</span>
+                <span>-${((totalPrice * discount) / 100).toFixed(2)}</span>
+              </p>
+            )}
             <p className="flex justify-between text-2xl font-bold border-t pt-2">
               <span>Total:</span>
-              <span>
-                ${useBasketStore.getState().getTotalPrice().toFixed(2)}
-              </span>
+              <span>${finalPrice.toFixed(2)}</span>
             </p>
+          </div>
+
+          <div className="mt-4">
+            <label htmlFor="coupon" className="block text-sm font-medium text-gray-700">
+              Coupon Code
+            </label>
+            <div className="mt-1 flex gap-2">
+              <input
+                type="text"
+                name="coupon"
+                id="coupon"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                placeholder="Enter code"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={handleApplyCoupon}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded"
+              >
+                Apply
+              </button>
+            </div>
+            {couponError && <p className="text-red-500 text-sm mt-1">{couponError}</p>}
+            {appliedCoupon && (
+              <p className="text-green-600 text-sm mt-1">
+                Coupon "{appliedCoupon}" applied!
+              </p>
+            )}
           </div>
 
           {isSignedIn ? (
