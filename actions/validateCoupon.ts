@@ -10,6 +10,7 @@ export async function validateCoupon(code: string) {
         isValid: true,
         discountAmount: sale.discountAmount,
         code: sale.couponCode,
+        applicableProducts: sale.products?.map((p: any) => p._id) || [],
       };
     }
     return { isValid: false, message: "Invalid or expired coupon code." };

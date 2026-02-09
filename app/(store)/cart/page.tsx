@@ -18,6 +18,7 @@ export type Metadata = {
   clerkUserId: string;
   couponCode?: string;
   discountAmount?: number;
+  applicableProducts?: string; // JSON string of IDs
 };
 
 function BasketPage() {
@@ -32,6 +33,7 @@ function BasketPage() {
   const [discount, setDiscount] = useState(0);
   const [couponError, setCouponError] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [applicableProducts, setApplicableProducts] = useState<string[]>([]);
 
   useEffect(() => {
     setClient(true);
@@ -66,6 +68,7 @@ function BasketPage() {
     if (result.isValid) {
       setDiscount(result.discountAmount!);
       setAppliedCoupon(result.code!);
+      setApplicableProducts(result.applicableProducts || []);
       setCouponCode("");
     } else {
       setCouponError(result.message!);
@@ -84,6 +87,7 @@ function BasketPage() {
         clerkUserId: user!.id,
         couponCode: appliedCoupon,
         discountAmount: discount,
+        applicableProducts: JSON.stringify(applicableProducts),
       };
 
       const checkoutUrl = await createCheckoutSession(groupedItems, metadata);
@@ -99,7 +103,28 @@ function BasketPage() {
   };
 
   const totalPrice = useBasketStore.getState().getTotalPrice();
-  const finalPrice = Math.max(0, totalPrice - (totalPrice * discount) / 100);
+  
+  const calculateDiscount = () => {
+    if (discount === 0) return 0;
+    
+    if (applicableProducts.length === 0) {
+      // Global discount
+      return (totalPrice * discount) / 100;
+    }
+
+    // Specific product discount
+    const discountableAmount = groupedItems.reduce((acc, item) => {
+      if (applicableProducts.includes(item.product._id)) {
+        return acc + (item.product.price ?? 0) * item.quantity;
+      }
+      return acc;
+    }, 0);
+
+    return (discountableAmount * discount) / 100;
+  };
+
+  const discountValue = calculateDiscount();
+  const finalPrice = Math.max(0, totalPrice - discountValue);
 
   return (
     <div className="container mx-auto p-4 max-w-6xl">
@@ -134,6 +159,11 @@ function BasketPage() {
                     Price: $
                     {((item.product.price ?? 0) * item.quantity).toFixed(2)}
                   </p>
+                  {applicableProducts.includes(item.product._id) && (
+                    <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mt-1">
+                      {discount}% Off ({appliedCoupon})
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center ml-4 flex-shrink-0">
@@ -157,8 +187,8 @@ function BasketPage() {
             </p>
             {discount > 0 && (
               <p className="flex justify-between text-green-600">
-                <span>Discount ({discount}%):</span>
-                <span>-${((totalPrice * discount) / 100).toFixed(2)}</span>
+                <span>Discount ({discount}%{applicableProducts.length > 0 ? " on specific items" : ""}):</span>
+                <span>-${discountValue.toFixed(2)}</span>
               </p>
             )}
             <p className="flex justify-between text-2xl font-bold border-t pt-2">

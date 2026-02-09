@@ -23,6 +23,12 @@ export const productType = defineType({
             },
         }),
         defineField({
+            name: 'sku',
+            title: 'SKU',
+            type: 'string',
+            validation: (Rule) => Rule.required(),
+        }),
+        defineField({
             name: 'image',
             title: 'Product image',
             type: 'image',
@@ -35,6 +41,21 @@ export const productType = defineType({
             title: 'Price',
             type: 'number',
             validation: (Rule: any) => Rule.required().positive().precision(2).min(0),
+        }),
+        defineField({
+            name: 'currency',
+            title: 'Currency',
+            type: 'string',
+            initialValue: 'ZAR',
+            options: {
+                list: ['ZAR', 'USD', 'EUR', 'GBP'],
+            },
+        }),
+        defineField({
+            name: 'tags',
+            title: 'Tags',
+            type: 'array',
+            of: [{ type: 'string' }],
         }),
         defineField({
             name: 'description',

@@ -114,12 +114,25 @@ export default async function OrderPage({ params }: OrderPageProps) {
                     </p>
                   </div>
                 </div>
-                <p className="font-medium text-gray-900">
-                  {formatCurrency(
-                    (item.product?.price ?? 0) * item.quantity,
-                    item.product?.currency || "ZAR",
-                  )}
-                </p>
+                <div className="flex flex-col items-end">
+                  <p className="font-medium text-gray-900">
+                    {formatCurrency(
+                      (item.product?.price ?? 0) * item.quantity,
+                      item.product?.currency || "ZAR",
+                    )}
+                  </p>
+                  {order.discountAmount > 0 &&
+                    (order.applicableProducts?.some(
+                      (p: any) => p._id === item.product?._id,
+                    ) ||
+                      !order.applicableProducts ||
+                      order.applicableProducts.length === 0) && (
+                      <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mt-1">
+                        {order.discountAmount}% Off
+                        {order.couponCode ? ` (${order.couponCode})` : ""}
+                      </span>
+                    )}
+                </div>
               </div>
             ))}
           </div>
@@ -127,35 +140,66 @@ export default async function OrderPage({ params }: OrderPageProps) {
 
         <div className="border-t border-gray-200 pt-8 mt-8 flex justify-end">
           <div className="w-full md:w-1/3">
-             <div className="flex justify-between items-center py-2">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium text-gray-900">
-                     {formatCurrency(
-                        order.orderItems.reduce((acc: number, item: any) => acc + (item.product?.price ?? 0) * item.quantity, 0),
-                        order.orderItems[0]?.product?.currency || "ZAR"
-                     )}
+            <div className="flex justify-between items-center py-2">
+              <span className="text-gray-600">Subtotal</span>
+              <span className="font-medium text-gray-900">
+                {formatCurrency(
+                  order.orderItems.reduce(
+                    (acc: number, item: any) =>
+                      acc + (item.product?.price ?? 0) * item.quantity,
+                    0,
+                  ),
+                  order.orderItems[0]?.product?.currency || "ZAR",
+                )}
+              </span>
+            </div>
+            {order.discountAmount > 0 && (
+              <div className="flex justify-between items-center py-2">
+                <span className="text-gray-600">
+                  Discount {order.couponCode ? `(${order.couponCode})` : ""}
                 </span>
-             </div>
-             {order.discountAmount > 0 && (
-                <div className="flex justify-between items-center py-2">
-                    <span className="text-gray-600">Discount {order.couponCode ? `(${order.couponCode})` : ""}</span>
-                    <span className="font-medium text-red-600">
-                        -{formatCurrency(
-                             (order.orderItems.reduce((acc: number, item: any) => acc + (item.product?.price ?? 0) * item.quantity, 0) * order.discountAmount) / 100,
-                             order.orderItems[0]?.product?.currency || "ZAR"
-                        )}
-                    </span>
-                </div>
-             )}
-             <div className="flex justify-between items-center py-2 border-t border-gray-200 mt-2">
-                <span className="text-lg font-bold text-gray-900">Total</span>
-                <span className="text-lg font-bold text-gray-900">
-                     {formatCurrency(
-                        order.total ?? order.orderItems.reduce((acc: number, item: any) => acc + (item.product?.price ?? 0) * item.quantity, 0),
-                        order.orderItems[0]?.product?.currency || "ZAR"
-                     )}
+                <span className="font-medium text-red-600">
+                  -
+                  {formatCurrency(
+                    order.applicableProducts &&
+                      order.applicableProducts.length > 0
+                      ? (order.orderItems.reduce(
+                          (acc: number, item: any) =>
+                            order.applicableProducts.some(
+                              (p: any) => p._id === item.product?._id,
+                            )
+                              ? acc + (item.product?.price ?? 0) * item.quantity
+                              : acc,
+                          0,
+                        ) *
+                          order.discountAmount) /
+                          100
+                      : (order.orderItems.reduce(
+                          (acc: number, item: any) =>
+                            acc + (item.product?.price ?? 0) * item.quantity,
+                          0,
+                        ) *
+                          order.discountAmount) /
+                          100,
+                    order.orderItems[0]?.product?.currency || "ZAR",
+                  )}
                 </span>
-             </div>
+              </div>
+            )}
+            <div className="flex justify-between items-center py-2 border-t border-gray-200 mt-2">
+              <span className="text-lg font-bold text-gray-900">Total</span>
+              <span className="text-lg font-bold text-gray-900">
+                {formatCurrency(
+                  order.total ??
+                    order.orderItems.reduce(
+                      (acc: number, item: any) =>
+                        acc + (item.product?.price ?? 0) * item.quantity,
+                      0,
+                    ),
+                  order.orderItems[0]?.product?.currency || "ZAR",
+                )}
+              </span>
+            </div>
           </div>
         </div>
       </div>

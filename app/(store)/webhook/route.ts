@@ -129,6 +129,12 @@ export async function POST(req: NextRequest) {
         currency: currency, // Store currency even if not in schema for future use
         discountAmount: metadata?.discountAmount || 0,
         couponCode: metadata?.couponCode || "",
+        applicableProducts: metadata?.applicableProducts
+          ? JSON.parse(metadata.applicableProducts).map((id: string) => ({
+              _type: "reference",
+              _ref: id,
+            }))
+          : [],
         orderItems: items.map((item) => ({
           _type: "object",
           _key: crypto.randomUUID(),

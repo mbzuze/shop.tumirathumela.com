@@ -12,7 +12,8 @@ export async function getOrder(orderNumber: string) {
       orderItems[] {
         ...,
         product->
-      }
+      },
+      applicableProducts[]->
     }
   `);
 

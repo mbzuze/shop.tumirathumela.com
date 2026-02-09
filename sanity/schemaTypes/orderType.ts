@@ -113,6 +113,12 @@ export const orderType = defineType({
             type: 'string',
         }),
         defineField({
+            name: 'applicableProducts',
+            title: 'Applicable Products for Discount',
+            type: 'array',
+            of: [{ type: 'reference', to: [{ type: 'product' }] }],
+        }),
+        defineField({
             name: 'status',
             title: 'Order Status',
             type: 'string',

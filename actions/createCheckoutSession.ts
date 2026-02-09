@@ -11,6 +11,7 @@ export type Metadata = {
   items: string; // Serialized items
   couponCode?: string;
   discountAmount?: number;
+  applicableProducts?: string;
 };
 
 export type GroupedBasketItem = {
@@ -34,16 +35,41 @@ export async function createCheckoutSession(
     );
 
     let totalAmount = subtotal;
+    let totalDiscount = 0;
+
     if (metadata.discountAmount && metadata.discountAmount > 0) {
-        // Assume discountAmount is a percentage (e.g., 20 for 20%)
-        totalAmount = subtotal - (subtotal * metadata.discountAmount) / 100;
+      let applicableIds: string[] = [];
+      if (metadata.applicableProducts) {
+        try {
+          applicableIds = JSON.parse(metadata.applicableProducts);
+        } catch (e) {
+          console.error("Could not parse applicableProducts JSON", e);
+          // Fallback to global discount if JSON is invalid
+          applicableIds = [];
+        }
+      }
+
+      if (applicableIds && applicableIds.length > 0) {
+        // --- Specific product discount logic ---
+        const discountableAmount = items.reduce((acc, item) => {
+          if (applicableIds.includes(item.product._id)) {
+            return acc + item.product.price! * item.quantity;
+          }
+          return acc;
+        }, 0);
+        totalDiscount = (discountableAmount * metadata.discountAmount) / 100;
+      } else {
+        // --- Global discount logic ---
+        totalDiscount = (subtotal * metadata.discountAmount) / 100;
+      }
+      totalAmount = Math.max(0, subtotal - totalDiscount);
     }
 
     const payload = {
       amount: Math.round(totalAmount * 100), // Amount in cents
       currency: "ZAR",
       subtotalAmount: Math.round(subtotal * 100),
-      totalDiscount: Math.round((subtotal * (metadata.discountAmount || 0)) / 100 * 100),
+      totalDiscount: Math.round(totalDiscount * 100),
       metadata: {
         ...metadata,
         items: JSON.stringify(
