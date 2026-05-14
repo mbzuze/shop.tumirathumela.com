@@ -26,6 +26,9 @@ const useLocationStore = create<LocationState>()(
       city: "Johannesburg", // Default city
       currency: "ZAR", // Default currency
       setLocation: (country, city) => {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("location-manual-override", "true");
+        }
         const currency = country === "ZA" ? "ZAR" : "USD";
         set({ isInitialized: true, country, city, currency });
       },
@@ -39,6 +42,31 @@ const useLocationStore = create<LocationState>()(
       initLocation: async () => {
         if (get().isInitialized) return;
 
+        if (typeof window !== "undefined") {
+          const manualOverride = localStorage.getItem("location-manual-override");
+          if (manualOverride === "true") {
+            set({ isInitialized: true });
+            return;
+          }
+
+          const cachedGeo = localStorage.getItem("cached-geolocation");
+          if (cachedGeo) {
+            try {
+              const cached = JSON.parse(cachedGeo);
+              const age = Date.now() - cached.timestamp;
+              if (age < 7 * 24 * 60 * 60 * 1000) {
+                set({
+                  isInitialized: true,
+                  country: cached.country,
+                  city: cached.city,
+                  currency: cached.currency,
+                });
+                return;
+              }
+            } catch(e){}
+          }
+        }
+
         try {
           const res = await fetch("https://ipapi.co/json/");
           const data = await res.json();
@@ -48,6 +76,15 @@ const useLocationStore = create<LocationState>()(
             const country = isZW ? "ZW" : "ZA";
             const city = data.city || (isZW ? "Harare" : "Johannesburg");
             const currency = isZW ? "USD" : "ZAR";
+
+            if (typeof window !== "undefined") {
+              localStorage.setItem("cached-geolocation", JSON.stringify({
+                country,
+                city,
+                currency,
+                timestamp: Date.now(),
+              }));
+            }
 
             set({ isInitialized: true, country, city, currency });
           } else {

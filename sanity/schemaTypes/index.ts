@@ -11,11 +11,13 @@ import { homepageSectionType } from './homepageSectionType'
 import { dealType } from './dealType'
 import { siteSettingsType } from './siteSettingsType'
 import { customerAddressType } from './customerAddressType'
+import { productVariantType } from './productVariantType'
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
     blockContentType,
     categoryType,
+    productVariantType,
     productType,
     orderType,
     salesType,

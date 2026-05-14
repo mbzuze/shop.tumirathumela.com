@@ -1,6 +1,5 @@
 "use client";
 
-import { createCheckoutSession } from "@/actions/createCheckoutSession";
 import { validateCoupon } from "@/actions/validateCoupon";
 import { imageUrl } from "@/lib/imageUrl";
 import { formatPrice } from "@/lib/utils";
@@ -25,7 +24,7 @@ export type Metadata = {
 
 function CartPage() {
   const groupedItems = useBasketStore((state) => state.getGroupedItems());
-  const { removeItem, addItem } = useBasketStore();
+  const { removeItem, addItem, applyCoupon } = useBasketStore();
   const { isSignedIn } = useAuth();
   const { user } = useUser();
   const router = useRouter();
@@ -75,6 +74,28 @@ function CartPage() {
       setDiscount(result.discountAmount!);
       setAppliedCoupon(result.code!);
       setApplicableProducts(result.applicableProducts || []);
+
+      const tPrice = useBasketStore.getState().getTotalPrice();
+      let dValue = 0;
+      if (!result.applicableProducts || result.applicableProducts.length === 0) {
+        dValue = (tPrice * result.discountAmount!) / 100;
+      } else {
+        const discountableAmount = groupedItems.reduce((acc, item) => {
+          if (result.applicableProducts!.includes(item.product._id)) {
+            return acc + (item.product.price ?? 0) * item.quantity;
+          }
+          return acc;
+        }, 0);
+        dValue = (discountableAmount * result.discountAmount!) / 100;
+      }
+
+      applyCoupon({
+        code: result.code!,
+        discountPercent: result.discountAmount!,
+        discountAmount: dValue,
+        applicableProductIds: result.applicableProducts || []
+      });
+
       setCouponCode("");
     } else {
       setCouponError(result.message!);

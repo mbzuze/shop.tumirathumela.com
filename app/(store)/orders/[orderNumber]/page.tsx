@@ -19,7 +19,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
   }
 
   const { orderNumber } = await params;
-  const order = await getOrder(orderNumber);
+  const order = await getOrder(orderNumber, userId);
 
   if (!order) {
     return (

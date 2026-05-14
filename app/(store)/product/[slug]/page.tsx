@@ -8,6 +8,7 @@ import ImageGallery from "@/components/product/ImageGallery";
 import BuyNowButton from "@/components/product/BuyNowButton";
 import ReviewsSection from "@/components/product/ReviewsSection";
 import { StarRating } from "@/components/ui/StarRating";
+import ProductClientInteractive from "@/components/product/ProductClientInteractive";
 
 // Helper: delivery estimate string
 function getDeliveryEstimate(): string {
@@ -133,26 +134,7 @@ async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
               </div>
             )}
 
-            {/* Price block (desktop hidden — shown in buy box on lg) */}
-            <div className="mt-3 lg:hidden">
-              {hasDiscount && (
-                <p className="text-sm text-[#CC0C39] font-bold mb-0.5">
-                  -{discountPct}% off
-                </p>
-              )}
-              <p className="text-2xl font-normal text-[#0F1111]">
-                <span className="text-sm align-top leading-6">R</span>
-                {(product.price ?? 0).toFixed(2)}
-              </p>
-              {hasDiscount && (
-                <p className="text-sm text-[#565959] mt-0.5">
-                  List price:{" "}
-                  <span className="line-through">
-                    R{product.compareAtPrice!.toFixed(2)}
-                  </span>
-                </p>
-              )}
-            </div>
+
 
             {/* Description */}
             {Array.isArray(product.description) && (
@@ -189,55 +171,13 @@ async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
 
             {/* Mobile add-to-basket (below specs) */}
             <div className="mt-6 lg:hidden space-y-2">
-              {isOutOfStock ? (
-                <p className="text-red-600 font-bold">Out of Stock</p>
-              ) : (
-                <>
-                  <AddToBasketButton product={product} disabled={isOutOfStock} />
-                  <BuyNowButton product={product} disabled={isOutOfStock} />
-                </>
-              )}
+              <ProductClientInteractive product={product} />
             </div>
           </div>
 
           {/* ── Col 3: Floating Buy Box ──────────────────────────────────── */}
           <div className="hidden lg:block w-[280px] xl:w-[300px] shrink-0">
             <div className="border border-[#ddd] rounded p-4 shadow-sm bg-white sticky top-24 space-y-3">
-              {/* Price */}
-              <div>
-                {hasDiscount && (
-                  <p className="text-sm text-[#CC0C39] font-bold">
-                    -{discountPct}% off
-                  </p>
-                )}
-                <p className="text-2xl font-normal text-[#0F1111]">
-                  <span className="text-sm align-top leading-6">R</span>
-                  {(product.price ?? 0).toFixed(2)}
-                </p>
-                {hasDiscount && (
-                  <p className="text-xs text-[#565959] mt-0.5">
-                    Was:{" "}
-                    <span className="line-through">
-                      R{product.compareAtPrice!.toFixed(2)}
-                    </span>
-                  </p>
-                )}
-              </div>
-
-              {/* Delivery */}
-              <div className="text-sm text-[#0F1111] border-t border-[#ddd] pt-3">
-                <p className="text-[#007600]">{deliveryEstimate}</p>
-              </div>
-
-              {/* Stock status */}
-              <div className="text-sm">
-                {isOutOfStock ? (
-                  <p className="text-red-600 font-bold">Currently unavailable</p>
-                ) : (
-                  <p className="text-[#007600] font-bold">In Stock</p>
-                )}
-              </div>
-
               {/* Seller info */}
               <div className="text-xs text-[#565959] border-t border-[#ddd] pt-3 space-y-0.5">
                 <p>
@@ -250,17 +190,8 @@ async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
                 </p>
               </div>
 
-              {/* Actions */}
-              {!isOutOfStock && (
-                <div className="space-y-2 pt-1">
-                  {/* Yellow Add to Cart */}
-                  <div className="[&>div]:w-full [&_button]:w-full [&_button]:rounded-full [&_button]:py-2 [&_button]:text-sm [&_button]:bg-[#FFD814] [&_button:hover]:bg-[#F7CA00] [&_button]:border [&_button]:border-[#FCD200] [&_button]:text-[#0F1111] [&_button]:transition-colors">
-                    <AddToBasketButton product={product} />
-                  </div>
-                  {/* Orange Buy Now */}
-                  <BuyNowButton product={product} />
-                </div>
-              )}
+              {/* Interactive Buy Box (Variant selector, price, stock, actions) */}
+              <ProductClientInteractive product={product} />
 
               {/* Deal badge */}
               {product.dealBadge && (

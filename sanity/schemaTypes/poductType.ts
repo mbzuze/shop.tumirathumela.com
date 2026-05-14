@@ -6,6 +6,10 @@ export const productType = defineType({
     title: 'Products',
     type: 'document',
     icon: TrolleyIcon,
+    fieldsets: [
+        { name: 'pricing', title: 'Pricing & Valuation' },
+        { name: 'deals', title: 'Deals & Promotions' },
+    ],
     fields: [
         defineField({
             name: 'name',
@@ -47,6 +51,7 @@ export const productType = defineType({
             name: 'price',
             title: 'Price (ZAR)',
             type: 'number',
+            fieldset: 'pricing',
             description: 'The base selling price in South African Rand (ZAR)',
             validation: (Rule: any) => Rule.required().positive().precision(2).min(0),
         }),
@@ -54,8 +59,14 @@ export const productType = defineType({
             name: 'compareAtPrice',
             title: 'Compare At Price (ZAR)',
             type: 'number',
+            fieldset: 'pricing',
             description: 'The original retail price for sale comparison display',
-            validation: (Rule: any) => Rule.positive().precision(2),
+            validation: (Rule: any) => Rule.positive().precision(2).custom((value: any, context: any) => {
+              if (value && context.document?.price && value <= context.document.price) {
+                return 'Compare at price must be greater than the regular price';
+              }
+              return true;
+            }),
         }),
         defineField({
             name: 'brand',
@@ -94,6 +105,13 @@ export const productType = defineType({
             validation: (Rule: any) => Rule.required().min(0),
         }),
         defineField({
+            name: 'variants',
+            title: 'Product Variants',
+            type: 'array',
+            of: [{ type: 'productVariant' }],
+            description: 'Optional variations of this product (size, color, etc.)',
+        }),
+        defineField({
             name: 'rating',
             title: 'Average Rating',
             type: 'number',
@@ -109,6 +127,7 @@ export const productType = defineType({
             name: 'dealBadge',
             title: 'Deal Badge',
             type: 'string',
+            fieldset: 'deals',
             options: {
                 list: [
                     { title: 'Limited Time Deal', value: 'limited-time' },
@@ -121,6 +140,7 @@ export const productType = defineType({
             name: 'dealPercent',
             title: 'Deal Percentage',
             type: 'number',
+            fieldset: 'deals',
             validation: (Rule) => Rule.min(0).max(100),
         }),
         defineField({

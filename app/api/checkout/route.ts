@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       orderItems: sanityOrderItems || [], // Now securely passed from the frontend
       total: amount / 100,
       discountAmount: totalDiscount / 100,
+      couponCode: metadata.couponCode || null,
       status: 'pending',
     });
 

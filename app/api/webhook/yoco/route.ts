@@ -1,46 +1,93 @@
 import { NextResponse, NextRequest } from "next/server";
 import { backendClient } from "@/sanity/lib/backendClient";
+import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   console.log("=== Yoco Webhook Received ===");
   try {
-    const payload = await request.json();
-    console.log("Webhook payload:", JSON.stringify(payload, null, 2));
-
-    const { type, payload: eventData } = payload;
-
-    // We are only interested in successful payments for now
-    if (type === "payment.succeeded") {
-      const orderNumber = eventData?.metadata?.orderNumber;
-
-      if (!orderNumber) {
-        console.error("No orderNumber found in webhook metadata!");
-        return NextResponse.json({ error: "Missing orderNumber" }, { status: 400 });
-      }
-
-      console.log(`Payment succeeded for order: ${orderNumber}. Updating Sanity...`);
-
-      // Find the order document in Sanity by orderNumber
-      const orderQuery = `*[_type == "order" && orderNumber == $orderNumber][0]`;
-      const order = await backendClient.fetch(orderQuery, { orderNumber });
-
-      if (order) {
-        // Update the order status to "completed" (or "processing")
-        await backendClient
-          .patch(order._id)
-          .set({ status: 'completed' }) // Using 'completed' as defined in our schema
-          .commit();
-        
-        console.log(`Order ${orderNumber} successfully marked as completed.`);
-      } else {
-        console.error(`Order ${orderNumber} not found in Sanity!`);
-        return NextResponse.json({ error: "Order not found" }, { status: 404 });
-      }
+    // 1. Extract raw body and signature header
+    const rawBody = await request.text();
+    const signature = request.headers.get("yoco-signature");
+    
+    if (!signature) {
+      console.error("Missing yoco-signature header");
+      return NextResponse.json(
+        { error: "Missing signature" },
+        { status: 401 }
+      );
     }
-
+    
+    // 2. Verify HMAC signature
+    const webhookSecret = process.env.YOCO_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      throw new Error("YOCO_WEBHOOK_SECRET not configured");
+    }
+    
+    const expectedSignature = crypto
+      .createHmac("sha256", webhookSecret)
+      .update(rawBody)
+      .digest("hex");
+    
+    if (signature !== expectedSignature) {
+      console.error("Invalid webhook signature");
+      return NextResponse.json(
+        { error: "Invalid signature" },
+        { status: 401 }
+      );
+    }
+    
+    // 3. Parse body only after verification
+    const body = JSON.parse(rawBody);
+    console.log("Webhook payload:", JSON.stringify(body, null, 2));
+    
+    // 4. Process payment.succeeded event
+    if (body.type === "payment.succeeded") {
+      const orderNumber = body.payload?.metadata?.orderNumber;
+      
+      if (!orderNumber) {
+        console.error("Missing orderNumber in webhook payload");
+        return NextResponse.json(
+          { error: "Missing orderNumber" },
+          { status: 400 }
+        );
+      }
+      
+      console.log(`Payment succeeded for order: ${orderNumber}. Updating Sanity...`);
+      
+      // 5. Update order status in Sanity
+      const result = await backendClient
+        .patch({
+          query: `*[_type == "order" && orderNumber == $orderNumber][0]`,
+          params: { orderNumber }
+        })
+        .set({ 
+          status: "paid",
+          paidAt: new Date().toISOString(),
+          paymentProvider: "yoco",
+          paymentId: body.payload.id
+        })
+        .commit();
+      
+      if (!result) {
+        console.error(`Order not found: ${orderNumber}`);
+        return NextResponse.json(
+          { error: "Order not found" },
+          { status: 404 }
+        );
+      }
+      
+      console.log(`Order ${orderNumber} marked as paid`);
+      return NextResponse.json({ received: true });
+    }
+    
+    // Other webhook events can be handled here
     return NextResponse.json({ received: true });
-  } catch (err: any) {
-    console.error("Webhook error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    
+  } catch (error: any) {
+    console.error("Webhook processing error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

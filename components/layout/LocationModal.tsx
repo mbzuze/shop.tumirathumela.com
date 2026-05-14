@@ -16,10 +16,14 @@ const ZA_CITIES = [
   "Upington","Welkom",
 ];
 
+const ZW_CITIES = [
+  "Harare", "Bulawayo", "Mutare", "Gweru"
+];
+
 export default function LocationModal() {
   const { locationModalOpen, setLocationModal } = useUIStore();
   const { user, isLoaded } = useUser();
-  const { city, country, setCity, setCountry } = useLocationStore();
+  const { city, country, setLocation } = useLocationStore();
 
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
@@ -47,13 +51,12 @@ export default function LocationModal() {
       const addr = addresses.find((a) => a._id === selectedAddressId);
       if (addr) {
         startTransition(() => {
-          setCity(addr.city);
-          setCountry(addr.country);
+          setLocation(addr.country as any, addr.city);
         });
       }
     } else if (!user && selectedCity) {
-      setCity(selectedCity);
-      setCountry("ZA");
+      const isZim = ZW_CITIES.includes(selectedCity);
+      setLocation(isZim ? "ZW" : "ZA", selectedCity);
     }
     setLocationModal(false);
   };
@@ -189,11 +192,20 @@ export default function LocationModal() {
                     className="w-full border border-[#888c8c] rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#e77600]"
                   >
                     <option value="">Select a city nearest to you</option>
-                    {ZA_CITIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
+                    <optgroup label="South Africa (ZAR)">
+                      {ZA_CITIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Zimbabwe (USD)">
+                      {ZW_CITIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
               </div>

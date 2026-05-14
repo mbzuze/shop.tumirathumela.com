@@ -5,6 +5,10 @@ export const orderType = defineType({
     name: 'order',
     title: 'Order',
     type: 'document',
+    fieldsets: [
+        { name: 'customer', title: 'Customer Details' },
+        { name: 'payment', title: 'Payment & Pricing Details' },
+    ],
     fields: [
         defineField({
             name: 'orderNumber',
@@ -28,36 +32,42 @@ export const orderType = defineType({
             name: 'customerName',
             title: 'Customer Name',
             type: 'string',
+            fieldset: 'customer',
             validation: (Rule) => Rule.required(),
         }),
         defineField({
             name: 'customerEmail',
             title: 'Customer Email',
             type: 'string',
+            fieldset: 'customer',
             validation: (Rule) => Rule.required(),
         }),
         defineField({
             name: 'customerPhone',
             title: 'Customer Phone',
             type: 'string',
+            fieldset: 'customer',
             validation: (Rule) => Rule.required(),
         }),
         defineField({
             name: 'customerAddress',
             title: 'Customer Address',
             type: 'string',
+            fieldset: 'customer',
             validation: (Rule) => Rule.required(),
         }),
         defineField({
             name: 'customerCity',
             title: 'Customer City',
             type: 'string',
+            fieldset: 'customer',
             validation: (Rule) => Rule.required(),
         }),
         defineField({
             name: 'customerState',
             title: 'Customer State',
             type: 'string',
+            fieldset: 'customer',
             validation: (Rule) => Rule.required(),
         }),
         defineField({
@@ -101,16 +111,19 @@ export const orderType = defineType({
             name: 'total',
             title: 'Total Amount',
             type: 'number',
+            fieldset: 'payment',
         }),
         defineField({
             name: 'discountAmount',
             title: 'Discount Amount',
             type: 'number',
+            fieldset: 'payment',
         }),
         defineField({
             name: 'couponCode',
             title: 'Coupon Code',
             type: 'string',
+            fieldset: 'payment',
         }),
         defineField({
             name: 'applicableProducts',

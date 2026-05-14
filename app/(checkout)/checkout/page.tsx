@@ -83,7 +83,7 @@ export default function CheckoutPage() {
   const { user, isLoaded } = useUser();
   const { redirectToSignIn } = useClerk();
   const router = useRouter();
-  const { items, getTotalPrice } = useBasketStore();
+  const { items, getTotalPrice, appliedCoupon } = useBasketStore();
   const { country, currency } = useLocationStore();
 
   const [activeStep, setActiveStep] = useState<Step>(1);
@@ -135,7 +135,8 @@ export default function CheckoutPage() {
     DELIVERY_SPEEDS.find((s) => s.id === deliverySpeed)?.price ?? 0;
   const shipping = shippingBase + speedExtra;
   const tax = subtotal * 0.15;
-  const total = subtotal + shipping + tax;
+  const discountAmount = appliedCoupon?.discountAmount || 0;
+  const total = subtotal + shipping + tax - discountAmount;
 
   const handleConfirmAddress = () => {
     if (!streetAddress || !city || !postalCode || !phone) {
@@ -182,6 +183,8 @@ export default function CheckoutPage() {
           deliverySpeed,
           paymentMethod,
           totalTax: Math.round(tax * 100),
+          couponCode: appliedCoupon?.code || "",
+          discountAmount: Math.round(discountAmount * 100),
         },
         lineItems: items.map((item) => ({
           name: item.product.name || "Product",
@@ -193,7 +196,7 @@ export default function CheckoutPage() {
         })),
         sanityOrderItems,
         subtotalAmount: Math.round(subtotal * 100),
-        totalDiscount: 0,
+        totalDiscount: Math.round(discountAmount * 100),
         successUrl: `${window.location.origin}/success`,
         cancelUrl: `${window.location.origin}/checkout`,
         failureUrl: `${window.location.origin}/checkout`,
@@ -592,11 +595,25 @@ export default function CheckoutPage() {
                 <span className="text-[#565959]">VAT (15%):</span>
                 <span>{formatPrice(tax, currency)}</span>
               </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-[#007600]">
+                  <span>Discount ({appliedCoupon?.code}):</span>
+                  <span>-{formatPrice(discountAmount, currency)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-base font-bold text-[#CC0C39] border-t border-[#ddd] pt-2 mt-2">
                 <span>Order total:</span>
                 <span>{formatPrice(total, currency)}</span>
               </div>
             </div>
+
+            {country === "ZW" && (
+              <div className="bg-[#EAF7EF] border border-[#007600] rounded-sm p-3 text-xs text-[#007600]">
+                <strong>Currency Notice:</strong> Your order will be processed in 
+                South African Rand (ZAR). Your bank will convert to USD at their current 
+                exchange rate. Estimated USD equivalent: ${(total / 18.5).toFixed(2)}
+              </div>
+            )}
 
             {/* Item thumbnails */}
             <div className="border-t border-[#ddd] pt-3 space-y-2">

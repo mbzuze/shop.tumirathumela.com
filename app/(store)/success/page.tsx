@@ -3,16 +3,18 @@ import { Button } from "@/components/ui/button";
 import useBasketStore from "@/store/store";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 function SuccessPage() {
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get("order");
   const clearBasket = useBasketStore((state) => state.clearBasket);
+  const hasCleared = useRef(false);
 
   useEffect(() => {
-    if (orderNumber) {
+    if (orderNumber && !hasCleared.current) {
       clearBasket();
+      hasCleared.current = true;
     }
   }, [orderNumber, clearBasket]);
 
