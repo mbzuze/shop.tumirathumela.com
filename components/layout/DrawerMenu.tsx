@@ -21,6 +21,7 @@ export default function DrawerMenu() {
   return (
     <Sheet open={drawerMenuOpen} onOpenChange={setDrawerMenu}>
       <SheetContent side="left" className="w-[85vw] sm:w-[350px] p-0 bg-white overflow-y-auto">
+        <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
         {/* Header - User Profile */}
         <div className="bg-tt-navy text-white p-4 py-6">
           <ClerkLoaded>
