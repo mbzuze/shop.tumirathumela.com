@@ -11,7 +11,7 @@ export const productType = defineType({
             name: 'name',
             title: 'Product Name',
             type: 'string',
-            validation: (Rule: any) => Rule.required().min(2).max(50),
+            validation: (Rule: any) => Rule.required().min(2).max(100),
         }),
         defineField({
             name: 'slug',
@@ -21,6 +21,7 @@ export const productType = defineType({
                 source: 'name',
                 maxLength: 90,
             },
+            validation: (Rule) => Rule.required(),
         }),
         defineField({
             name: 'sku',
@@ -29,27 +30,45 @@ export const productType = defineType({
             validation: (Rule) => Rule.required(),
         }),
         defineField({
-            name: 'image',
-            title: 'Product image',
-            type: 'image',
-            options: {
-                hotspot: true,
-            },
+            name: 'images',
+            title: 'Product Images',
+            type: 'array',
+            of: [
+                {
+                    type: 'image',
+                    options: {
+                        hotspot: true,
+                    },
+                }
+            ],
+            validation: (Rule) => Rule.required().min(1),
         }),
         defineField({
             name: 'price',
-            title: 'Price',
+            title: 'Price (ZAR)',
             type: 'number',
+            description: 'The base selling price in South African Rand (ZAR)',
             validation: (Rule: any) => Rule.required().positive().precision(2).min(0),
         }),
         defineField({
-            name: 'currency',
-            title: 'Currency',
-            type: 'string',
-            initialValue: 'ZAR',
-            options: {
-                list: ['ZAR', 'USD', 'EUR', 'GBP'],
-            },
+            name: 'compareAtPrice',
+            title: 'Compare At Price (ZAR)',
+            type: 'number',
+            description: 'The original retail price for sale comparison display',
+            validation: (Rule: any) => Rule.positive().precision(2),
+        }),
+        defineField({
+            name: 'brand',
+            title: 'Brand',
+            type: 'reference',
+            to: [{ type: 'brand' }],
+        }),
+        defineField({
+            name: 'category',
+            title: 'Category',
+            type: 'reference',
+            to: [{ type: 'category' }],
+            validation: (Rule) => Rule.required(),
         }),
         defineField({
             name: 'tags',
@@ -63,36 +82,72 @@ export const productType = defineType({
             type: 'blockContent',
         }),
         defineField({
-            name: 'category',
-            title: 'Category',
-            type: 'array',
-            of: [{ type: 'reference', to: { type: 'category' } }],
-        }),
-        defineField({
             name: 'inStock',
             title: 'In Stock',
             type: 'boolean',
             initialValue: true,
         }),
         defineField({
-            name: 'quantity',
-            title: 'Quantity in Stock',
+            name: 'stockCount',
+            title: 'Stock Count',
             type: 'number',
             validation: (Rule: any) => Rule.required().min(0),
+        }),
+        defineField({
+            name: 'rating',
+            title: 'Average Rating',
+            type: 'number',
+            validation: (Rule) => Rule.min(0).max(5),
+        }),
+        defineField({
+            name: 'reviewCount',
+            title: 'Review Count',
+            type: 'number',
+            validation: (Rule) => Rule.min(0),
+        }),
+        defineField({
+            name: 'dealBadge',
+            title: 'Deal Badge',
+            type: 'string',
+            options: {
+                list: [
+                    { title: 'Limited Time Deal', value: 'limited-time' },
+                    { title: 'Percent Off', value: 'percent-off' },
+                    { title: 'New Arrival', value: 'new' },
+                ]
+            }
+        }),
+        defineField({
+            name: 'dealPercent',
+            title: 'Deal Percentage',
+            type: 'number',
+            validation: (Rule) => Rule.min(0).max(100),
+        }),
+        defineField({
+            name: 'isFeatured',
+            title: 'Featured Product',
+            type: 'boolean',
+            initialValue: false,
+        }),
+        defineField({
+            name: 'isBestSeller',
+            title: 'Best Seller',
+            type: 'boolean',
+            initialValue: false,
         }),
     ],
     preview: {
         select: {
             title: 'name',
-            media: 'image',
+            images: 'images',
             subtitle: 'price',
         },
         prepare: (select) => {
-            const { title, media, subtitle } = select;
+            const { title, images, subtitle } = select;
             return {
                 title: title,
-                media: media && media.length > 0 ? media[0] : null,
-                subtitle: `${subtitle}`,
+                media: images && images.length > 0 ? images[0] : null,
+                subtitle: `R ${subtitle}`,
             };
         },
     },

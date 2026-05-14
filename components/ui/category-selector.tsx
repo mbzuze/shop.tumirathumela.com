@@ -29,7 +29,7 @@ export function CategorySelectorComponent({ categories, }: CategorySelectorProps
                 className="w-full max-w-full relative flex justify-center sm:justify-start sm:flex-none items-center space-x-2 bg-blue-500 hover:bg-blue-700 hover:text-white text-white font-bold py-2 px-4 rounded"
             >
                 {value
-                    ? categories.find((category) => category._id === value)?.title
+                    ? categories.find((category) => category._id === value)?.name
                     : "Filter by Category"}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0" />
             </Button>
@@ -43,7 +43,7 @@ export function CategorySelectorComponent({ categories, }: CategorySelectorProps
                     onKeyDown={(e) => {
                         if (e.key === "Enter") {
                             const selectedCategory = categories.find((category) =>
-                                category.title?.toLowerCase().includes(e.currentTarget.value.toLocaleLowerCase())
+                                category.name?.toLowerCase().includes(e.currentTarget.value.toLocaleLowerCase())
                             );
                             if (selectedCategory?.slug?.current) {
                                 router.push(`/categories/${selectedCategory.slug.current}`);
@@ -59,14 +59,14 @@ export function CategorySelectorComponent({ categories, }: CategorySelectorProps
                         {categories.map((category) => (
                             <CommandItem
                                 key={category._id}
-                                value={category.title}
+                                value={category.name}
                                 onSelect={(e) => {
                                     router.push(`/categories/${category.slug?.current}`);
                                     setValue(category._id === value ? "" : category._id);
                                     setOpen(false);
                                 }}
                             >
-                                {category.title}
+                                {category.name}
                                 <Check
                                     className={cn("ml-auto h-4 w-4",
                                         value === category._id ? "opacity-100" : "opacity-0"

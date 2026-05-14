@@ -1,4 +1,3 @@
-
 import { createClient } from 'next-sanity';
 
 export const backendClient = createClient({
@@ -6,5 +5,5 @@ export const backendClient = createClient({
     dataset: process.env.NEXT_PUBLIC_SANITY_DATASET,
     apiVersion: '2023-05-03',
     useCdn: false,
-    token: process.env.SANITY_API_READ_TOKEN,
+    token: process.env.SANITY_API_TOKEN || process.env.SANITY_API_READ_TOKEN,
 });

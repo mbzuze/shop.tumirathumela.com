@@ -5,7 +5,25 @@ import { categoryType } from './categoryType'
 import { productType } from './poductType'
 import { orderType } from './orderType'
 import { salesType } from './salesType'
+import { brandType } from './brandType'
+import { heroBannerType } from './heroBannerType'
+import { homepageSectionType } from './homepageSectionType'
+import { dealType } from './dealType'
+import { siteSettingsType } from './siteSettingsType'
+import { customerAddressType } from './customerAddressType'
 
 export const schema: { types: SchemaTypeDefinition[] } = {
-  types: [blockContentType, categoryType, orderType, productType, salesType],
+  types: [
+    blockContentType,
+    categoryType,
+    productType,
+    orderType,
+    salesType,
+    brandType,
+    heroBannerType,
+    homepageSectionType,
+    dealType,
+    siteSettingsType,
+    customerAddressType,
+  ],
 }

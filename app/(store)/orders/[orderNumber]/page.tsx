@@ -33,6 +33,11 @@ export default async function OrderPage({ params }: OrderPageProps) {
     );
   }
 
+  const orderItems = order.orderItems || [];
+  const discountAmount = order.discountAmount || 0;
+  const applicableProducts = order.applicableProducts || [];
+  const currency = "ZAR";
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
       <div className="bg-white p-4 sm:p-8 rounded-xl shadow-lg w-full max-w-4xl">
@@ -56,7 +61,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
             </p>
             <p className="text-sm text-gray-600">
               <span className="font-medium">Date:</span>{" "}
-              {new Date(order.orderDate).toLocaleDateString()}
+              {order.orderDate ? new Date(order.orderDate).toLocaleDateString() : "N/A"}
             </p>
           </div>
           <div>
@@ -89,16 +94,16 @@ export default async function OrderPage({ params }: OrderPageProps) {
             Order Items
           </h2>
           <div className="space-y-4">
-            {order.orderItems.map((item: any, index: number) => (
+            {orderItems.map((item: any, index: number) => (
               <div
                 key={index}
                 className="flex items-center justify-between border-b border-gray-100 pb-4 last:border-0 last:pb-0"
               >
                 <div className="flex items-center space-x-4">
-                  {item.product?.image && (
+                  {item.product?.images?.[0] && (
                     <div className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200">
                       <Image
-                        src={imageUrl(item.product.image).url()}
+                        src={imageUrl(item.product.images[0]).url()}
                         alt={item.product.name || "Product Image"}
                         fill
                         className="object-cover"
@@ -118,17 +123,16 @@ export default async function OrderPage({ params }: OrderPageProps) {
                   <p className="font-medium text-gray-900">
                     {formatCurrency(
                       (item.product?.price ?? 0) * item.quantity,
-                      item.product?.currency || "ZAR",
+                      currency,
                     )}
                   </p>
-                  {order.discountAmount > 0 &&
-                    (order.applicableProducts?.some(
+                  {discountAmount > 0 &&
+                    (applicableProducts.some(
                       (p: any) => p._id === item.product?._id,
                     ) ||
-                      !order.applicableProducts ||
-                      order.applicableProducts.length === 0) && (
+                      applicableProducts.length === 0) && (
                       <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mt-1">
-                        {order.discountAmount}% Off
+                        {discountAmount}% Off
                         {order.couponCode ? ` (${order.couponCode})` : ""}
                       </span>
                     )}
@@ -144,16 +148,16 @@ export default async function OrderPage({ params }: OrderPageProps) {
               <span className="text-gray-600">Subtotal</span>
               <span className="font-medium text-gray-900">
                 {formatCurrency(
-                  order.orderItems.reduce(
+                  orderItems.reduce(
                     (acc: number, item: any) =>
                       acc + (item.product?.price ?? 0) * item.quantity,
                     0,
                   ),
-                  order.orderItems[0]?.product?.currency || "ZAR",
+                  currency,
                 )}
               </span>
             </div>
-            {order.discountAmount > 0 && (
+            {discountAmount > 0 && (
               <div className="flex justify-between items-center py-2">
                 <span className="text-gray-600">
                   Discount {order.couponCode ? `(${order.couponCode})` : ""}
@@ -161,27 +165,26 @@ export default async function OrderPage({ params }: OrderPageProps) {
                 <span className="font-medium text-red-600">
                   -
                   {formatCurrency(
-                    order.applicableProducts &&
-                      order.applicableProducts.length > 0
-                      ? (order.orderItems.reduce(
+                    applicableProducts.length > 0
+                      ? (orderItems.reduce(
                           (acc: number, item: any) =>
-                            order.applicableProducts.some(
+                            applicableProducts.some(
                               (p: any) => p._id === item.product?._id,
                             )
                               ? acc + (item.product?.price ?? 0) * item.quantity
                               : acc,
                           0,
                         ) *
-                          order.discountAmount) /
+                          discountAmount) /
                           100
-                      : (order.orderItems.reduce(
+                      : (orderItems.reduce(
                           (acc: number, item: any) =>
                             acc + (item.product?.price ?? 0) * item.quantity,
                           0,
                         ) *
-                          order.discountAmount) /
+                          discountAmount) /
                           100,
-                    order.orderItems[0]?.product?.currency || "ZAR",
+                    currency,
                   )}
                 </span>
               </div>
@@ -191,12 +194,12 @@ export default async function OrderPage({ params }: OrderPageProps) {
               <span className="text-lg font-bold text-gray-900">
                 {formatCurrency(
                   order.total ??
-                    order.orderItems.reduce(
+                    orderItems.reduce(
                       (acc: number, item: any) =>
                         acc + (item.product?.price ?? 0) * item.quantity,
                       0,
                     ),
-                  order.orderItems[0]?.product?.currency || "ZAR",
+                  currency,
                 )}
               </span>
             </div>

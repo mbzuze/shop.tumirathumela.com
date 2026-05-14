@@ -12,6 +12,7 @@ interface BasketState {
   items: BasketItem[];
   addItem: (product: Product) => void;
   removeItem: (productId: string) => void;
+  updateQty: (productId: string, quantity: number) => void;
   clearBasket: () => void;
   getTotalPrice: () => number;
   getItemCount: (productId: string) => number;
@@ -54,6 +55,15 @@ const useBasketStore = create<BasketState>()(
             }
             return acc;
           }, [] as BasketItem[]),
+        }));
+      },
+      updateQty: (productId, quantity) => {
+        set((state) => ({
+          items: state.items.map((item) => 
+            item.product._id === productId 
+              ? { ...item, quantity: Math.max(0, quantity) }
+              : item
+          ).filter(item => item.quantity > 0)
         }));
       },
       clearBasket: () => set({ items: [] }),

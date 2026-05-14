@@ -4,7 +4,7 @@ import { getProductsByCategory } from "@/sanity/lib/products/getProductsByCatego
 
 
 async function CategoryPage(
-    { params }: { params: { slug: string } }
+    { params }: { params: Promise<{ slug: string }> }
 ) {
     const { slug } = await params;
     

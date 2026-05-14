@@ -6,7 +6,11 @@ export const getProductBySlug = async (slug: string) => {
     *[
         _type == "product"
         && slug.current == $slug
-    ] | order(name asc)[0]
+    ] | order(name asc)[0] {
+      ...,
+      brand->,
+      category->
+    }
     `);
 
     try {

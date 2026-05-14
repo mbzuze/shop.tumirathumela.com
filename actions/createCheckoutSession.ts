@@ -2,13 +2,14 @@
 
 import { BasketItem } from "@/store/store";
 import { imageUrl } from "@/lib/imageUrl";
+import { headers } from "next/headers";
 
 export type Metadata = {
   orderNumber: string;
   customerName: string;
   customerEmail: string;
   clerkUserId: string;
-  items: string; // Serialized items
+  items?: string; // Serialized items
   couponCode?: string;
   discountAmount?: number;
   applicableProducts?: string;
@@ -65,6 +66,12 @@ export async function createCheckoutSession(
       totalAmount = Math.max(0, subtotal - totalDiscount);
     }
 
+    const headersList = await headers();
+    const host = headersList.get("host");
+    const isLocalhost = host?.includes("localhost");
+    const protocol = headersList.get("x-forwarded-proto") || (isLocalhost ? "http" : "https");
+    const baseUrl = `${protocol}://${host}`;
+
     const payload = {
       amount: Math.round(totalAmount * 100), // Amount in cents
       currency: "ZAR",
@@ -88,15 +95,15 @@ export async function createCheckoutSession(
           price: Math.round(item.product.price! * item.quantity * 100),
         },
       })),
-      cancelUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/cart`,
-      successUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/success?order=${metadata.orderNumber}`,
-      failureUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/failure`,
+      cancelUrl: `${baseUrl}/cart`,
+      successUrl: `${baseUrl}/success?order=${metadata.orderNumber}`,
+      failureUrl: `${baseUrl}/checkout/failure`,
     };
 
     // console.log("Payload being sent:", JSON.stringify(payload, null, 2));
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/checkout`,
+        `${baseUrl}/api/checkout`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
