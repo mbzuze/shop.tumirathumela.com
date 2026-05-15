@@ -12,6 +12,8 @@ import { dealType } from './dealType'
 import { siteSettingsType } from './siteSettingsType'
 import { customerAddressType } from './customerAddressType'
 import { productVariantType } from './productVariantType'
+import { reviewType } from './reviewType'
+import { wishlistType } from './wishlistType'
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -27,5 +29,7 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     dealType,
     siteSettingsType,
     customerAddressType,
+    reviewType,
+    wishlistType,
   ],
 }
