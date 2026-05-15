@@ -29,9 +29,10 @@ export default function SecondaryNav() {
         <Link href="/category/everyday-essentials" className="hover:border-white border border-transparent p-1 rounded hidden sm:block">
           Everyday Essentials
         </Link>
-        <Link href="/category/best-sellers" className="hover:border-white border border-transparent p-1 rounded">
+        <Link href="/best-sellers" className="hover:border-white border border-transparent p-1 rounded">
           Best Sellers
         </Link>
+
         
         {/* Dynamic Locale Link */}
         <Link 

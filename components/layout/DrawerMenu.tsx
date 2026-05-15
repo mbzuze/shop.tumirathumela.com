@@ -69,9 +69,10 @@ export default function DrawerMenu({ categories }: DrawerMenuProps) {
           <div className={`transition-transform duration-300 ease-in-out ${activeCategory ? '-translate-x-full' : 'translate-x-0'}`}>
             <div className="py-4 border-b border-gray-200">
               <h3 className="font-bold text-lg px-6 mb-2">Trending</h3>
-              <Link href="/search?tag=best-seller" onClick={handleClose} className="block px-6 py-3 hover:bg-gray-100 font-medium">
+              <Link href="/best-sellers" onClick={handleClose} className="block px-6 py-3 hover:bg-gray-100 font-medium">
                 Best Sellers
               </Link>
+
               <Link href="/search?tag=new-arrival" onClick={handleClose} className="block px-6 py-3 hover:bg-gray-100 font-medium">
                 New Releases
               </Link>

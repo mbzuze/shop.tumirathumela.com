@@ -2,17 +2,22 @@ import { Suspense } from "react";
 import FilterSidebar from "@/components/search/FilterSidebar";
 import ProductThumbnail from "@/components/ProductThumbnail";
 import { getAllCategories } from "@/sanity/lib/products/getAllCategories";
-import { getProductsByCategory } from "@/sanity/lib/products/getProductsByCategory";
+import { getBestSellers } from "@/sanity/lib/products/getBestSellers";
+import { Product } from "@/sanity.types";
 
-async function CategoryPage(
-    { params }: { params: Promise<{ slug: string }> }
-) {
-    const { slug } = await params;
+interface BestSellersPageProps {
+  searchParams: Promise<{
+    category?: string;
+  }>;
+}
+
+async function BestSellersPage({ searchParams }: BestSellersPageProps) {
+    const { category: categorySlug = "" } = await searchParams;
     
     const categories = await getAllCategories();
-    const products = await getProductsByCategory(slug);
+    const products = await getBestSellers(categorySlug);
     
-    const currentCategory = categories.find(c => c.slug === slug);
+    const currentCategory = categorySlug ? categories.find(c => c.slug === categorySlug) : null;
 
     // Extract unique brands for the sidebar
     const brandSet = new Map<string, string>();
@@ -36,24 +41,26 @@ async function CategoryPage(
               <FilterSidebar
                 brands={brands}
                 categories={categories as any}
-                activeCategory={slug}
+                activeCategory={categorySlug}
                 activeBrands={[]}
                 activeMinPrice={""}
                 activeMaxPrice={""}
                 activeRating={""}
                 query={""}
+                // We'll need to update FilterSidebar to support staying on /best-sellers
               />
             </Suspense>
           </div>
 
           {/* ── Results area ─────────────────────────────────────────── */}
           <div className="flex-1 min-w-0">
-            <div className="bg-white rounded p-6 mb-4 shadow-sm">
+            <div className="bg-white rounded p-6 mb-4 shadow-sm border-b-4 border-tt-orange">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                    {currentCategory?.name || slug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                    TumiraThumela Best Sellers
                 </h1>
                 <p className="text-gray-600 text-sm">
-                    {currentCategory?.description || `Explore our collection of ${currentCategory?.name || slug}.`}
+                    Our most popular products based on sales. Updated frequently.
+                    {currentCategory && <span className="font-bold ml-1">Showing {currentCategory.name}</span>}
                 </p>
             </div>
 
@@ -65,12 +72,9 @@ async function CategoryPage(
                 </div>
             ) : (
                 <div className="bg-white rounded p-12 shadow-sm text-center">
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">No products found</h2>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">No Best Sellers found</h2>
                     <p className="text-gray-600">
-                        We couldn't find any products in this category at the moment.
-                    </p>
-                    <p className="text-gray-500 text-sm mt-4">
-                        Try browsing other departments or check back later.
+                        We couldn't find any best sellers in this category at the moment.
                     </p>
                 </div>
             )}
@@ -81,6 +85,4 @@ async function CategoryPage(
   )
 }
 
-
-
-export default CategoryPage;
+export default BestSellersPage;

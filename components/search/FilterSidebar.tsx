@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { Category } from "@/sanity.types";
@@ -55,14 +55,23 @@ export default function FilterSidebar({
 }: FilterSidebarProps) {
   const router = useRouter();
   const params = useSearchParams();
+  const pathname = usePathname();
   const [minPrice, setMinPrice] = useState(activeMinPrice);
   const [maxPrice, setMaxPrice] = useState(activeMaxPrice);
 
   const applyParam = (key: string, value: string | null) => {
     if (key === "category" && value) {
+        if (pathname === "/best-sellers") {
+            const next = new URLSearchParams(params.toString());
+            if (value === "all") next.delete("category");
+            else next.set("category", value);
+            router.push(`/best-sellers?${next.toString()}`);
+            return;
+        }
         router.push(`/categories/${value}`);
         return;
     }
+
     const next = new URLSearchParams(params.toString());
     if (value) {
       next.set(key, value);
@@ -98,9 +107,11 @@ export default function FilterSidebar({
   const parentCategory = currentCategory?.parentCategory as any;
   
   // Grouping logic: Show sub-categories if one is selected, or show main departments
-  const relevantCategories = activeCategory && activeCategory !== "all"
+  const subCategories = activeCategory && activeCategory !== "all"
     ? categories.filter(c => (c.parentCategory as any)?._id === currentCategory?._id)
-    : categories.filter(c => !c.parentCategory);
+    : [];
+  
+  const mainDepartments = categories.filter(c => !c.parentCategory);
 
   return (
     <aside className="w-full space-y-6 text-sm">
@@ -108,26 +119,48 @@ export default function FilterSidebar({
       <div>
         <h3 className="font-bold text-[#0F1111] mb-1">Department</h3>
         <ul className="space-y-1">
+          {/* Current Drill-down */}
           {activeCategory && activeCategory !== "all" && (
-            <li className="mb-1">
-               <button 
-                onClick={() => applyParam("category", parentCategory?.slug || "all")}
-                className="flex items-center gap-1 text-gray-600 hover:text-[#C7511F] font-medium"
-               >
-                 <span className="text-[10px]">◀</span>
-                 {parentCategory?.name || "Any Department"}
-               </button>
-            </li>
-          )}
-          
-          {activeCategory && activeCategory !== "all" && (
-             <li className="pl-2 font-bold text-[#0F1111] mb-1">
-               {currentCategory?.name}
-             </li>
+            <>
+              <li className="mb-1">
+                 <button 
+                  onClick={() => applyParam("category", parentCategory?.slug || "all")}
+                  className="flex items-center gap-1 text-gray-600 hover:text-[#C7511F] font-medium"
+                 >
+                   <span className="text-[10px]">◀</span>
+                   {parentCategory?.name || "Any Department"}
+                 </button>
+              </li>
+              
+               <li className="pl-2 font-bold text-[#0F1111] mb-1">
+                 {currentCategory?.name}
+               </li>
+
+              <div className="pl-4 border-l border-gray-200 ml-1">
+                {subCategories.map((cat) => (
+                  <li key={cat._id}>
+                    <button
+                      onClick={() => applyParam("category", cat.slug as string)}
+                      className={`hover:text-[#C7511F] transition-colors block py-0.5 ${
+                        activeCategory === cat.slug ? "font-bold text-[#0F1111]" : "text-[#007185]"
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  </li>
+                ))}
+              </div>
+
+              <div className="my-3 border-t border-gray-100" />
+            </>
           )}
 
-          <div className={activeCategory && activeCategory !== "all" ? "pl-4" : ""}>
-            {relevantCategories.map((cat) => (
+          {/* All Main Departments */}
+          <div className="space-y-1">
+            <h4 className={`text-[11px] uppercase text-gray-400 font-bold tracking-wider mb-2 ${activeCategory && activeCategory !== "all" ? "" : "hidden"}`}>
+               Other Departments
+            </h4>
+            {mainDepartments.map((cat) => (
               <li key={cat._id}>
                 <button
                   onClick={() => applyParam("category", cat.slug as string)}
@@ -142,6 +175,7 @@ export default function FilterSidebar({
           </div>
         </ul>
       </div>
+
 
       {/* Customer Reviews */}
       <div>
