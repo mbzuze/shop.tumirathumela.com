@@ -144,8 +144,13 @@ export async function POST(req: NextRequest) {
           },
           quantity: item.quantity,
         })),
-        status: "paid",
+        status: "completed",
+        paidAt: new Date().toISOString(),
+        paymentProvider: "yoco",
+        paymentId: paymentId,
       });
+
+
 
       console.log("Order created in Sanity:", order._id);
 

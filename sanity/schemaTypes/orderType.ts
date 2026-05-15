@@ -126,6 +126,24 @@ export const orderType = defineType({
             fieldset: 'payment',
         }),
         defineField({
+            name: 'paidAt',
+            title: 'Paid At',
+            type: 'datetime',
+            fieldset: 'payment',
+        }),
+        defineField({
+            name: 'paymentProvider',
+            title: 'Payment Provider',
+            type: 'string',
+            fieldset: 'payment',
+        }),
+        defineField({
+            name: 'paymentId',
+            title: 'Payment ID',
+            type: 'string',
+            fieldset: 'payment',
+        }),
+        defineField({
             name: 'applicableProducts',
             title: 'Applicable Products for Discount',
             type: 'array',
@@ -144,6 +162,7 @@ export const orderType = defineType({
                 ],
             },
         }),
+
     ],
     preview: {
         select: {

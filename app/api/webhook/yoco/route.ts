@@ -5,14 +5,16 @@ import crypto from "crypto";
 export async function POST(request: NextRequest) {
   console.log("=== Yoco Webhook Received ===");
   try {
-    // 1. Extract raw body and signature header
+    // 1. Extract body and headers
     const rawBody = await request.text();
-    const signature = request.headers.get("yoco-signature");
+    const id = request.headers.get("webhook-id") || "";
+    const timestamp = request.headers.get("webhook-timestamp") || "";
+    const signature = request.headers.get("webhook-signature") || "";
     
-    if (!signature) {
-      console.error("Missing yoco-signature header");
+    if (!signature || !id || !timestamp) {
+      console.error("Missing webhook headers:", { signature, id, timestamp });
       return NextResponse.json(
-        { error: "Missing signature" },
+        { error: "Missing headers" },
         { status: 401 }
       );
     }
@@ -23,13 +25,21 @@ export async function POST(request: NextRequest) {
       throw new Error("YOCO_WEBHOOK_SECRET not configured");
     }
     
-    const expectedSignature = crypto
-      .createHmac("sha256", webhookSecret)
-      .update(rawBody)
-      .digest("hex");
+    // Yoco sends secrets as 'whsec_BASE64_KEY'
+    const secretKey = webhookSecret.replace("whsec_", "");
+    const secretBytes = Buffer.from(secretKey, "base64");
     
-    if (signature !== expectedSignature) {
-      console.error("Invalid webhook signature");
+    const signedContent = `${id}.${timestamp}.${rawBody}`;
+    const expectedSignature = crypto
+      .createHmac("sha256", secretBytes)
+      .update(signedContent)
+      .digest("base64");
+    
+    // Strip 'v1,' if present in signature header
+    const actualSignature = signature.startsWith("v1,") ? signature.slice(3) : signature;
+
+    if (actualSignature !== expectedSignature) {
+      console.error("Invalid webhook signature mismatch");
       return NextResponse.json(
         { error: "Invalid signature" },
         { status: 401 }
@@ -38,11 +48,14 @@ export async function POST(request: NextRequest) {
     
     // 3. Parse body only after verification
     const body = JSON.parse(rawBody);
+
     console.log("Webhook payload:", JSON.stringify(body, null, 2));
     
     // 4. Process payment.succeeded event
     if (body.type === "payment.succeeded") {
-      const orderNumber = body.payload?.metadata?.orderNumber;
+      const data = body.payload || body.data;
+      const orderNumber = data?.metadata?.orderNumber;
+
       
       if (!orderNumber) {
         console.error("Missing orderNumber in webhook payload");
@@ -61,12 +74,14 @@ export async function POST(request: NextRequest) {
           params: { orderNumber }
         })
         .set({ 
-          status: "paid",
+          status: "completed",
           paidAt: new Date().toISOString(),
           paymentProvider: "yoco",
-          paymentId: body.payload.id
+          paymentId: data.id || body.payload?.id || "unknown"
         })
         .commit();
+
+
       
       if (!result) {
         console.error(`Order not found: ${orderNumber}`);
