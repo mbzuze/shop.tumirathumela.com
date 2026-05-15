@@ -8,16 +8,22 @@ import { Product } from "@/sanity.types";
 // Client wrappers are needed for hooks in SortSelect / FilterSidebar,
 // but this page itself is a server component for SSR performance.
 
+import { getAllCategories } from "@/sanity/lib/products/getAllCategories";
+
 interface SearchPageProps {
   searchParams: Promise<{
     query?: string;
     sort?: string;
     brands?: string;
+    category?: string;
+    tag?: string;
     minPrice?: string;
+
     maxPrice?: string;
     rating?: string;
   }>;
 }
+
 
 function sortProducts(products: Product[], sort: string): Product[] {
   switch (sort) {
@@ -41,22 +47,26 @@ async function SearchPage({ searchParams }: SearchPageProps) {
     query = "",
     sort = "featured",
     brands: brandsParam = "",
+    category: categorySlug = "",
+    tag = "",
     minPrice = "",
     maxPrice = "",
     rating = "",
   } = await searchParams;
 
+  const allCategories = await getAllCategories();
   const activeBrands = brandsParam ? brandsParam.split(",").filter(Boolean) : [];
 
   // Fetch results
-  let products: Product[] = await searchProductsByName(query) as Product[];
+  let products: Product[] = await searchProductsByName(query, categorySlug, tag) as Product[];
 
-  // Client-side filters (applied after fetch since Sanity free tier limits complex GROQ)
+
   if (activeBrands.length > 0) {
     products = products.filter((p) =>
       activeBrands.includes((p as any).brand?.name ?? "")
     );
   }
+
   if (minPrice) {
     products = products.filter((p) => (p.price ?? 0) >= Number(minPrice));
   }
@@ -107,6 +117,8 @@ async function SearchPage({ searchParams }: SearchPageProps) {
             <Suspense fallback={<div className="animate-pulse h-64 bg-gray-100 rounded" />}>
               <FilterSidebar
                 brands={brands}
+                categories={allCategories as any}
+                activeCategory={categorySlug}
                 activeBrands={activeBrands}
                 activeMinPrice={minPrice}
                 activeMaxPrice={maxPrice}
@@ -114,6 +126,7 @@ async function SearchPage({ searchParams }: SearchPageProps) {
                 query={query}
               />
             </Suspense>
+
           </div>
 
           {/* ── Results area ─────────────────────────────────────────── */}

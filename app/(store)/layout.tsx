@@ -7,6 +7,7 @@ import DrawerMenu from "@/components/layout/DrawerMenu";
 import CartDrawer from "@/components/layout/CartDrawer";
 import LocationModal from "@/components/layout/LocationModal";
 import Footer from "@/components/layout/Footer";
+import { getAllCategories } from "@/sanity/lib/products/getAllCategories";
 import { SanityLive } from "@/sanity/lib/live";
 
 export const metadata: Metadata = {
@@ -14,17 +15,19 @@ export const metadata: Metadata = {
   description: "Homepage",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const categories = await getAllCategories();
+
   return (
     <ClerkProvider dynamic>
       <html lang="en">
         <body>
           <main className="min-h-screen flex flex-col bg-gray-50">
-            <Navbar />
+            <Navbar categories={categories} />
             <SecondaryNav />
             <div className="flex-grow">
               {children}
@@ -32,7 +35,8 @@ export default function RootLayout({
             <Footer />
           </main>
 
-          <DrawerMenu />
+          <DrawerMenu categories={categories} />
+
           <CartDrawer />
           <LocationModal />
 

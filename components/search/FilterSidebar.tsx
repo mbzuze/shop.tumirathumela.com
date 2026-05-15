@@ -3,6 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { Category } from "@/sanity.types";
+
 interface Brand {
   name: string;
   slug?: string;
@@ -10,12 +12,15 @@ interface Brand {
 
 interface FilterSidebarProps {
   brands: Brand[];
+  categories: Category[];
+  activeCategory: string;
   activeBrands: string[];
   activeMinPrice: string;
   activeMaxPrice: string;
   activeRating: string;
   query: string;
 }
+
 
 const STAR_FILTERS = [4, 3, 2, 1];
 
@@ -40,6 +45,8 @@ function StarRow({ stars }: { stars: number }) {
 
 export default function FilterSidebar({
   brands,
+  categories,
+  activeCategory,
   activeBrands,
   activeMinPrice,
   activeMaxPrice,
@@ -52,6 +59,10 @@ export default function FilterSidebar({
   const [maxPrice, setMaxPrice] = useState(activeMaxPrice);
 
   const applyParam = (key: string, value: string | null) => {
+    if (key === "category" && value) {
+        router.push(`/categories/${value}`);
+        return;
+    }
     const next = new URLSearchParams(params.toString());
     if (value) {
       next.set(key, value);
@@ -60,6 +71,7 @@ export default function FilterSidebar({
     }
     router.push(`/search?${next.toString()}`);
   };
+
 
   const toggleBrand = (brand: string) => {
     const current = activeBrands.includes(brand)
@@ -81,8 +93,56 @@ export default function FilterSidebar({
     router.push(`/search?${next.toString()}`);
   };
 
+  const currentCategory = categories.find(c => c.slug === activeCategory);
+
+  const parentCategory = currentCategory?.parentCategory as any;
+  
+  // Grouping logic: Show sub-categories if one is selected, or show main departments
+  const relevantCategories = activeCategory && activeCategory !== "all"
+    ? categories.filter(c => (c.parentCategory as any)?._id === currentCategory?._id)
+    : categories.filter(c => !c.parentCategory);
+
   return (
     <aside className="w-full space-y-6 text-sm">
+      {/* Departments */}
+      <div>
+        <h3 className="font-bold text-[#0F1111] mb-1">Department</h3>
+        <ul className="space-y-1">
+          {activeCategory && activeCategory !== "all" && (
+            <li className="mb-1">
+               <button 
+                onClick={() => applyParam("category", parentCategory?.slug || "all")}
+                className="flex items-center gap-1 text-gray-600 hover:text-[#C7511F] font-medium"
+               >
+                 <span className="text-[10px]">◀</span>
+                 {parentCategory?.name || "Any Department"}
+               </button>
+            </li>
+          )}
+          
+          {activeCategory && activeCategory !== "all" && (
+             <li className="pl-2 font-bold text-[#0F1111] mb-1">
+               {currentCategory?.name}
+             </li>
+          )}
+
+          <div className={activeCategory && activeCategory !== "all" ? "pl-4" : ""}>
+            {relevantCategories.map((cat) => (
+              <li key={cat._id}>
+                <button
+                  onClick={() => applyParam("category", cat.slug as string)}
+                  className={`hover:text-[#C7511F] transition-colors block py-0.5 ${
+                    activeCategory === cat.slug ? "font-bold text-[#0F1111]" : "text-[#007185]"
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              </li>
+            ))}
+          </div>
+        </ul>
+      </div>
+
       {/* Customer Reviews */}
       <div>
         <h3 className="font-bold text-[#0F1111] mb-2">Customer Review</h3>
