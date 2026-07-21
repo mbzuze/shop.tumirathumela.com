@@ -183,9 +183,9 @@ export default function DrawerMenu({ categories }: DrawerMenuProps) {
                     {activeCategory.name}
                   </h3>
                   
-                  <Link 
-                    href={`/categories/${activeCategory.slug}`} 
-                    onClick={handleClose} 
+                  <Link
+                    href={`/categories/${activeCategory.slug?.current}`}
+                    onClick={handleClose}
                     className="block px-6 py-3 hover:bg-gray-100 font-medium"
                   >
                     All {activeCategory.name}
@@ -194,10 +194,10 @@ export default function DrawerMenu({ categories }: DrawerMenuProps) {
                   {categories
                     .filter(c => (c.parentCategory as any)?._id === activeCategory._id)
                     .map((sub) => (
-                      <Link 
-                        key={sub._id} 
-                        href={`/categories/${sub.slug}`} 
-                        onClick={handleClose} 
+                      <Link
+                        key={sub._id}
+                        href={`/categories/${sub.slug?.current}`}
+                        onClick={handleClose}
                         className="block px-6 py-3 hover:bg-gray-100"
                       >
                         {sub.name}

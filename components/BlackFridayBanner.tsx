@@ -5,7 +5,7 @@ async function BlackFridayBanner() {
     
     const sale = await getActiveSaleByCouponCode(COUPON_CODES.BLACK_FRIDAY);
 
-    if (!sale?.isActive) {
+    if (!sale) {
         return null;
     }
     

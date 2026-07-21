@@ -1,62 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
-import { backendClient } from "@/sanity/lib/backendClient";
+
+const CMS_BASE = process.env.CMS_API_URL ?? 'https://cms.tumirathumela.com'
+const CMS_API_KEY = process.env.CMS_API_KEY ?? ''
 
 export async function POST(request: NextRequest) {
   try {
     const { orderNumber } = await request.json();
-
     if (!orderNumber) {
       return NextResponse.json({ error: "Order number required" }, { status: 400 });
     }
 
-    console.log(`Manually verifying order: ${orderNumber}`);
+    // Fetch order from TumiraCMS
+    const orderRes = await fetch(`${CMS_BASE}/api/cms/v1/orders/${orderNumber}`, {
+      headers: { 'X-CMS-API-Key': CMS_API_KEY },
+      cache: 'no-store',
+    })
 
-    // Fetch the order from Sanity
-    const order = await backendClient.fetch(
-      `*[_type == "order" && orderNumber == $orderNumber][0]`,
-      { orderNumber }
-    );
-
-    if (!order) {
+    if (!orderRes.ok) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (order.status === "completed" || order.status === "paid") {
+    const { data: order } = await orderRes.json()
+
+    if (order.status === "COMPLETED" || order.status === "PROCESSING") {
       return NextResponse.json({ success: true, status: order.status });
     }
 
-    // If it's still pending, we assume the webhook failed (common on localhost)
-    // In a real app, we would call Yoco API to check the actual payment status here.
-    // For now, since we are on the SUCCESS page, we can be reasonably sure the user paid
-    // (though in production you MUST verify with the payment provider API).
-    
-    // Let's call Yoco to be safe if we have the payment ID
-    if (order.yocoPaymentId) {
-        const resp = await fetch(`https://payments.yoco.com/api/checkouts/${order.yocoPaymentId}`, {
-            headers: {
-                Authorization: `Bearer ${process.env.YOCO_SECRET_KEY}`,
-            },
-        });
-        
-        if (resp.ok) {
-            const checkout = await resp.json();
-            if (checkout.status === "successful" || checkout.status === "paid") {
-                console.log(`Yoco confirms payment for ${orderNumber}. Updating status...`);
-                await backendClient
-                    .patch(order._id)
-                    .set({ 
-                        status: "completed",
-                        paidAt: new Date().toISOString(),
-                    })
-                    .commit();
-                return NextResponse.json({ success: true, status: "completed" });
-            }
+    // Fall back to Yoco API verification if still pending
+    if (order.paymentId) {
+      const yocoRes = await fetch(`https://payments.yoco.com/api/checkouts/${order.paymentId}`, {
+        headers: { Authorization: `Bearer ${process.env.YOCO_SECRET_KEY}` },
+      });
+
+      if (yocoRes.ok) {
+        const checkout = await yocoRes.json();
+        if (checkout.status === "successful" || checkout.status === "paid") {
+          // Update order via CMS admin API
+          await fetch(`${CMS_BASE}/api/cms/v1/admin/orders/${order.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'X-CMS-API-Key': CMS_API_KEY },
+            body: JSON.stringify({ status: 'COMPLETED' }),
+          })
+          return NextResponse.json({ success: true, status: "COMPLETED" });
         }
+      }
     }
 
     return NextResponse.json({ success: false, status: order.status });
-  } catch (error: any) {
-    console.error("Order verification error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error'
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

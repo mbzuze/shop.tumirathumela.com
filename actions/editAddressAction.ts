@@ -2,14 +2,15 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { updateAddress, setDefaultAddress, getAddressById } from "@/sanity/lib/addresses";
+import { getAddressesByUser, updateAddress, setDefaultAddress } from "@/sanity/lib/addresses";
 
 export async function editAddressAction(id: string, formData: FormData) {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
   // Verify ownership
-  const existing = await getAddressById(id);
+  const addresses = await getAddressesByUser(userId);
+  const existing = addresses.find((a) => a.id === id);
   if (!existing || existing.clerkUserId !== userId) {
     redirect("/account/addresses");
   }
@@ -22,15 +23,15 @@ export async function editAddressAction(id: string, formData: FormData) {
     fullName: formData.get("fullName") as string,
     phone: `${phonePrefix}${phoneNumber}`,
     streetAddress: formData.get("streetAddress") as string,
-    buildingDetails: (formData.get("buildingDetails") as string) || undefined,
-    suburb: (formData.get("suburb") as string) || undefined,
+    buildingDetails: (formData.get("buildingDetails") as string) || null,
+    suburb: (formData.get("suburb") as string) || null,
     city: formData.get("city") as string,
-    province: (formData.get("province") as string) || undefined,
+    province: (formData.get("province") as string) || null,
     postalCode: formData.get("postalCode") as string,
     country: formData.get("country") as "ZA" | "ZW",
     isDefault,
-    addressType: formData.get("addressType") as "Home/Residential" | "Office/Business",
-    deliveryInstructions: (formData.get("deliveryInstructions") as string) || undefined,
+    addressType: formData.get("addressType") as string,
+    deliveryInstructions: (formData.get("deliveryInstructions") as string) || null,
   });
 
   if (isDefault) {

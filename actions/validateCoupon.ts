@@ -8,9 +8,10 @@ export async function validateCoupon(code: string) {
     if (sale) {
       return {
         isValid: true,
-        discountAmount: sale.discountAmount,
+        discountAmount: sale.discountAmount, // percentage
+        minimumOrderValue: null,
         code: sale.couponCode,
-        applicableProducts: sale.products?.map((p: any) => p._id) || [],
+        applicableProducts: sale.applicableProductIds || [],
       };
     }
     return { isValid: false, message: "Invalid or expired coupon code." };

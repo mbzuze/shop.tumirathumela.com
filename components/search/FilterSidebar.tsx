@@ -102,10 +102,10 @@ export default function FilterSidebar({
     router.push(`/search?${next.toString()}`);
   };
 
-  const currentCategory = categories.find(c => c.slug === activeCategory);
+  const currentCategory = categories.find(c => c.slug?.current === activeCategory);
 
   const parentCategory = currentCategory?.parentCategory as any;
-  
+
   // Grouping logic: Show sub-categories if one is selected, or show main departments
   const subCategories = activeCategory && activeCategory !== "all"
     ? categories.filter(c => (c.parentCategory as any)?._id === currentCategory?._id)
@@ -124,7 +124,7 @@ export default function FilterSidebar({
             <>
               <li className="mb-1">
                  <button 
-                  onClick={() => applyParam("category", parentCategory?.slug || "all")}
+                  onClick={() => applyParam("category", parentCategory?.slug?.current || "all")}
                   className="flex items-center gap-1 text-gray-600 hover:text-[#C7511F] font-medium"
                  >
                    <span className="text-[10px]">◀</span>
@@ -140,9 +140,9 @@ export default function FilterSidebar({
                 {subCategories.map((cat) => (
                   <li key={cat._id}>
                     <button
-                      onClick={() => applyParam("category", cat.slug as string)}
+                      onClick={() => applyParam("category", cat.slug?.current as string)}
                       className={`hover:text-[#C7511F] transition-colors block py-0.5 ${
-                        activeCategory === cat.slug ? "font-bold text-[#0F1111]" : "text-[#007185]"
+                        activeCategory === cat.slug?.current ? "font-bold text-[#0F1111]" : "text-[#007185]"
                       }`}
                     >
                       {cat.name}
@@ -163,9 +163,9 @@ export default function FilterSidebar({
             {mainDepartments.map((cat) => (
               <li key={cat._id}>
                 <button
-                  onClick={() => applyParam("category", cat.slug as string)}
+                  onClick={() => applyParam("category", cat.slug?.current as string)}
                   className={`hover:text-[#C7511F] transition-colors block py-0.5 ${
-                    activeCategory === cat.slug ? "font-bold text-[#0F1111]" : "text-[#007185]"
+                    activeCategory === cat.slug?.current ? "font-bold text-[#0F1111]" : "text-[#007185]"
                   }`}
                 >
                   {cat.name}

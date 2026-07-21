@@ -18,7 +18,7 @@ export default async function EditAddressPage({
   if (!userId) redirect("/sign-in");
 
   const { id } = await params;
-  const address = await getAddressById(id);
+  const address = await getAddressById(id, userId);
 
   if (!address || address.clerkUserId !== userId) notFound();
 

@@ -33,10 +33,10 @@ export default async function OrderPage({ params }: OrderPageProps) {
     );
   }
 
-  const orderItems = order.orderItems || [];
-  const discountAmount = order.discountAmount || 0;
-  const applicableProducts = order.applicableProducts || [];
-  const currency = "ZAR";
+  const orderItems = order.items || [];
+  const discountAmount = order.discountAmount || 0; // currency amount, not a percentage
+  const currency = order.currency || "ZAR";
+  const address = order.shippingAddress || {};
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
@@ -81,9 +81,9 @@ export default async function OrderPage({ params }: OrderPageProps) {
              )}
             <div className="text-sm text-gray-600 mt-2">
               <span className="font-medium">Address:</span>
-              <p>{order.customerAddress}</p>
+              <p>{address.streetAddress}</p>
               <p>
-                {order.customerCity}, {order.customerState}
+                {[address.city, address.province].filter(Boolean).join(", ")}
               </p>
             </div>
           </div>
@@ -94,17 +94,17 @@ export default async function OrderPage({ params }: OrderPageProps) {
             Order Items
           </h2>
           <div className="space-y-4">
-            {orderItems.map((item: any, index: number) => (
+            {orderItems.map((item) => (
               <div
-                key={index}
+                key={item.id}
                 className="flex items-center justify-between border-b border-gray-100 pb-4 last:border-0 last:pb-0"
               >
                 <div className="flex items-center space-x-4">
-                  {item.product?.images?.[0] && (
+                  {item.image && (
                     <div className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200">
                       <Image
-                        src={imageUrl(item.product.images[0]).url()}
-                        alt={item.product.name || "Product Image"}
+                        src={imageUrl(item.image).url()}
+                        alt={item.name || "Product Image"}
                         fill
                         className="object-cover"
                       />
@@ -112,7 +112,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
                   )}
                   <div>
                     <p className="font-medium text-gray-900">
-                      {item.product?.name || "Unknown Product"}
+                      {item.name || "Unknown Product"}
                     </p>
                     <p className="text-sm text-gray-500">
                       Quantity: {item.quantity}
@@ -121,21 +121,8 @@ export default async function OrderPage({ params }: OrderPageProps) {
                 </div>
                 <div className="flex flex-col items-end">
                   <p className="font-medium text-gray-900">
-                    {formatCurrency(
-                      (item.product?.price ?? 0) * item.quantity,
-                      currency,
-                    )}
+                    {formatCurrency(item.price * item.quantity, currency)}
                   </p>
-                  {discountAmount > 0 &&
-                    (applicableProducts.some(
-                      (p: any) => p._id === item.product?._id,
-                    ) ||
-                      applicableProducts.length === 0) && (
-                      <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mt-1">
-                        {discountAmount}% Off
-                        {order.couponCode ? ` (${order.couponCode})` : ""}
-                      </span>
-                    )}
                 </div>
               </div>
             ))}
@@ -147,14 +134,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
             <div className="flex justify-between items-center py-2">
               <span className="text-gray-600">Subtotal</span>
               <span className="font-medium text-gray-900">
-                {formatCurrency(
-                  orderItems.reduce(
-                    (acc: number, item: any) =>
-                      acc + (item.product?.price ?? 0) * item.quantity,
-                    0,
-                  ),
-                  currency,
-                )}
+                {formatCurrency(order.subtotal, currency)}
               </span>
             </div>
             {discountAmount > 0 && (
@@ -163,44 +143,14 @@ export default async function OrderPage({ params }: OrderPageProps) {
                   Discount {order.couponCode ? `(${order.couponCode})` : ""}
                 </span>
                 <span className="font-medium text-red-600">
-                  -
-                  {formatCurrency(
-                    applicableProducts.length > 0
-                      ? (orderItems.reduce(
-                          (acc: number, item: any) =>
-                            applicableProducts.some(
-                              (p: any) => p._id === item.product?._id,
-                            )
-                              ? acc + (item.product?.price ?? 0) * item.quantity
-                              : acc,
-                          0,
-                        ) *
-                          discountAmount) /
-                          100
-                      : (orderItems.reduce(
-                          (acc: number, item: any) =>
-                            acc + (item.product?.price ?? 0) * item.quantity,
-                          0,
-                        ) *
-                          discountAmount) /
-                          100,
-                    currency,
-                  )}
+                  -{formatCurrency(discountAmount, currency)}
                 </span>
               </div>
             )}
             <div className="flex justify-between items-center py-2 border-t border-gray-200 mt-2">
               <span className="text-lg font-bold text-gray-900">Total</span>
               <span className="text-lg font-bold text-gray-900">
-                {formatCurrency(
-                  order.total ??
-                    orderItems.reduce(
-                      (acc: number, item: any) =>
-                        acc + (item.product?.price ?? 0) * item.quantity,
-                      0,
-                    ),
-                  currency,
-                )}
+                {formatCurrency(order.total, currency)}
               </span>
             </div>
           </div>

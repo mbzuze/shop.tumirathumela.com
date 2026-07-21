@@ -67,7 +67,7 @@ export default function Navbar({ categories }: { categories: Category[] }) {
         <Form action="/search" className="hidden sm:flex flex-grow items-center relative rounded-md bg-white">
           <div className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] py-2 px-2 border-r border-gray-300 rounded-l-md cursor-pointer flex items-center min-w-[60px] justify-between relative group">
             <span className="truncate max-w-[80px]">
-              {selectedDept === "all" ? "All" : (categories.find(c => c.slug === selectedDept)?.name || "All")}
+              {selectedDept === "all" ? "All" : (categories.find(c => c.slug?.current === selectedDept)?.name || "All")}
             </span>
             <span className="ml-1 text-[10px] opacity-70">▼</span>
             <select 
@@ -80,7 +80,7 @@ export default function Navbar({ categories }: { categories: Category[] }) {
               {categories
                 .filter(c => !c.parentCategory)
                 .map((cat) => (
-                  <option key={cat._id} value={cat.slug}>
+                  <option key={cat._id} value={cat.slug?.current}>
                     {cat.name}
                   </option>
                 ))}

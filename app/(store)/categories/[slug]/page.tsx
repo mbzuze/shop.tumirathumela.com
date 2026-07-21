@@ -12,7 +12,7 @@ async function CategoryPage(
     const categories = await getAllCategories();
     const products = await getProductsByCategory(slug);
     
-    const currentCategory = categories.find(c => c.slug === slug);
+    const currentCategory = categories.find(c => c.slug?.current === slug);
 
     // Extract unique brands for the sidebar
     const brandSet = new Map<string, string>();

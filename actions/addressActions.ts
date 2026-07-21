@@ -6,8 +6,8 @@ import {
   getDefaultAddress,
   deleteAddress,
   setDefaultAddress,
-  type CustomerAddress,
 } from "@/sanity/lib/addresses";
+import type { CmsAddress as CustomerAddress } from "@/lib/cms-client";
 
 export async function getMyAddressesAction(): Promise<CustomerAddress[]> {
   const { userId } = await auth();
@@ -24,23 +24,21 @@ export async function getMyDefaultAddressAction(): Promise<CustomerAddress | nul
 export async function deleteMyAddressAction(id: string): Promise<void> {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
-  
-  // Security check: verify the user owns this address before deleting
+
   const addresses = await getAddressesByUser(userId);
-  const owns = addresses.some((a) => a._id === id);
+  const owns = addresses.some((a) => a.id === id);
   if (!owns) throw new Error("Unauthorized");
-  
+
   await deleteAddress(id);
 }
 
 export async function setMyDefaultAddressAction(id: string): Promise<void> {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
-  
-  // Security check: verify the user owns this address
+
   const addresses = await getAddressesByUser(userId);
-  const owns = addresses.some((a) => a._id === id);
+  const owns = addresses.some((a) => a.id === id);
   if (!owns) throw new Error("Unauthorized");
-  
+
   await setDefaultAddress(id, userId);
 }

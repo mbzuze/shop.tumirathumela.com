@@ -17,7 +17,7 @@ async function BestSellersPage({ searchParams }: BestSellersPageProps) {
     const categories = await getAllCategories();
     const products = await getBestSellers(categorySlug);
     
-    const currentCategory = categorySlug ? categories.find(c => c.slug === categorySlug) : null;
+    const currentCategory = categorySlug ? categories.find(c => c.slug?.current === categorySlug) : null;
 
     // Extract unique brands for the sidebar
     const brandSet = new Map<string, string>();
