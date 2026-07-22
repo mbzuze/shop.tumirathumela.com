@@ -1,0 +1,20 @@
+[Unit]
+Description=shop.tumirathumela.com storefront
+After=network.target
+
+[Service]
+Type=simple
+User=shoptumira
+Group=shoptumira
+WorkingDirectory=/home/shoptumira/public_html/shop.tumirathumela.com
+Environment=NODE_ENV=production
+Environment=PORT=3001
+EnvironmentFile=/home/shoptumira/public_html/shop.tumirathumela.com/.env
+ExecStart=/usr/bin/node node_modules/.bin/next start -p 3001
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/tumiracms/shop.log
+StandardError=append:/var/log/tumiracms/shop.error.log
+
+[Install]
+WantedBy=multi-user.target

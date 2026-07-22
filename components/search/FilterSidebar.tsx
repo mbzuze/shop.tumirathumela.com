@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState } from "react";
 
-import { Category } from "@/sanity.types";
+import { Category } from "@/lib/cms-types";
 
 interface Brand {
   name: string;

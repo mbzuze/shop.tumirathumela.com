@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getMyOrders } from "@/sanity/lib/orders/getMyOrders";
+import { getMyOrders } from "@/lib/cms-client";
 import { OrderListClient } from "@/components/OrderListClient";
 
 export default async function OrdersPage() {

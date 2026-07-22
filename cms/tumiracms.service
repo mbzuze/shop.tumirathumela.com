@@ -1,0 +1,20 @@
+[Unit]
+Description=TumiraCMS (admin.tumirathumela.com)
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+User=shoptumira
+Group=shoptumira
+WorkingDirectory=/home/shoptumira/public_html/shop.tumirathumela.com/cms
+Environment=NODE_ENV=production
+Environment=PORT=3002
+EnvironmentFile=/home/shoptumira/public_html/shop.tumirathumela.com/cms/.env
+ExecStart=/usr/bin/node node_modules/.bin/next start -p 3002
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/tumiracms/cms.log
+StandardError=append:/var/log/tumiracms/cms.error.log
+
+[Install]
+WantedBy=multi-user.target

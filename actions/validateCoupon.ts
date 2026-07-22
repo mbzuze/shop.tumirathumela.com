@@ -1,6 +1,6 @@
 "use server";
 
-import { getActiveSaleByCouponCode } from "@/sanity/lib/sales/getActiveSaleByCouponCode";
+import { getActiveSaleByCouponCode } from "@/lib/cms-client";
 
 export async function validateCoupon(code: string) {
   try {

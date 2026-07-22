@@ -1,7 +1,7 @@
-import { getHeroBanners } from "@/sanity/lib/home/getHeroBanners";
-import { getHomepageSections } from "@/sanity/lib/home/getHomepageSections";
-import { getAllCategories } from "@/sanity/lib/products/getAllCategories";
-import { getBrands } from "@/sanity/lib/products/getBrands";
+import { getHeroBanners } from "@/lib/cms-client";
+import { getHomepageSections } from "@/lib/cms-client";
+import { getAllCategories } from "@/lib/cms-client";
+import { getBrands } from "@/lib/cms-client";
 
 import HeroCarousel from "@/components/home/HeroCarousel";
 import HomepageGrid from "@/components/home/HomepageGrid";

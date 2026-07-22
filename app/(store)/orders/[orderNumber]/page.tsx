@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getOrder } from "@/sanity/lib/orders/getOrder";
+import { getOrder } from "@/lib/cms-client";
 import { formatCurrency } from "@/lib/utils";
 import Image from "next/image";
 import { imageUrl } from "@/lib/imageUrl";

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { CustomerAddress } from "@/sanity/lib/addresses";
+import type { CmsAddress as CustomerAddress } from "@/lib/cms-client";
 import { getMyAddressesAction, deleteMyAddressAction, setMyDefaultAddressAction } from "@/actions/addressActions";
 
 // ── Country label helper ──────────────────────────────────────────────────────

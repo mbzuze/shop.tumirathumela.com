@@ -5,7 +5,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import useBasketStore from "@/store/store";
 import useLocationStore from "@/store/locationStore";
-import { Product } from "@/sanity.types";
+import { Product } from "@/lib/cms-types";
 import { Loader2 } from "lucide-react";
 
 interface BuyNowButtonProps {

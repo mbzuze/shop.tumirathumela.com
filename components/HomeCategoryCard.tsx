@@ -1,4 +1,4 @@
-import { Category, Product } from "@/sanity.types";
+import { Category, Product } from "@/lib/cms-types";
 import { imageUrl } from "@/lib/imageUrl";
 import Image from "next/image";
 import Link from "next/link";

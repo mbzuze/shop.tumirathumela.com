@@ -1,6 +1,6 @@
 "use client";
 
-import { Category } from "@/sanity.types";
+import { Category } from "@/lib/cms-types";
 import Image from "next/image";
 import Link from "next/link";
 import { imageUrl } from "@/lib/imageUrl";

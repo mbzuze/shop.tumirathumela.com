@@ -7,8 +7,7 @@ import DrawerMenu from "@/components/layout/DrawerMenu";
 import CartDrawer from "@/components/layout/CartDrawer";
 import LocationModal from "@/components/layout/LocationModal";
 import Footer from "@/components/layout/Footer";
-import { getAllCategories } from "@/sanity/lib/products/getAllCategories";
-import { SanityLive } from "@/sanity/lib/live";
+import { getAllCategories } from "@/lib/cms-client";
 
 export const metadata: Metadata = {
   title: "Tumira Thumela",
@@ -39,8 +38,6 @@ export default async function RootLayout({
 
           <CartDrawer />
           <LocationModal />
-
-          <SanityLive />
         </body>
       </html>
     </ClerkProvider>

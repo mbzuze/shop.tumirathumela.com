@@ -1,0 +1,552 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ────────────────────────────────────────────────────────────────────
+
+enum DocumentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  YOCO
+  PAYFAST
+  MANUAL
+}
+
+enum AddressType {
+  HOME
+  BUSINESS
+  OTHER
+}
+
+enum HomepageSectionVariant {
+  FEATURED_PRODUCTS
+  COLLECTION_GRID
+  BANNER_ROW
+  PROMO_TILES
+  TESTIMONIALS
+  BRANDS
+  TEXT_BANNER
+}
+
+enum Locale {
+  ZA
+  ZW
+  BOTH
+}
+
+enum SaleDiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+// ─── MEDIA LIBRARY ────────────────────────────────────────────────────────────
+
+model MediaFolder {
+  id       String        @id @default(cuid())
+  name     String
+  parentId String?
+  parent   MediaFolder?  @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children MediaFolder[] @relation("FolderHierarchy")
+  media    Media[]
+
+  createdAt DateTime @default(now())
+
+  @@index([parentId])
+}
+
+model Media {
+  id           String       @id @default(cuid())
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  width        Int?
+  height       Int?
+  diskPath     String       @unique
+  publicUrl    String
+  thumbPath    String?
+  thumbUrl     String?
+  altText      String?
+  type         MediaType    @default(IMAGE)
+  folderId     String?
+  folder       MediaFolder? @relation(fields: [folderId], references: [id])
+
+  productImages        ProductImage[]
+  productVariants      ProductVariant[]
+  categories           Category[]
+  collections          Collection[]
+  brands               Brand[]
+  heroBanners          HeroBanner[]
+  homepageSectionItems HomepageSectionItem[]
+  siteSettingsLogo     SiteSettings?         @relation("SettingsLogo")
+  siteSettingsFavicon  SiteSettings?         @relation("SettingsFavicon")
+
+  uploadedBy String
+  createdAt  DateTime @default(now())
+
+  @@index([type])
+  @@index([folderId])
+}
+
+// ─── CATEGORIES ───────────────────────────────────────────────────────────────
+
+model Category {
+  id             String     @id @default(cuid())
+  slug           String     @unique
+  name           String
+  description    String?
+  parentId       String?
+  parent         Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children       Category[] @relation("CategoryHierarchy")
+  imageId        String?
+  image          Media?     @relation(fields: [imageId], references: [id])
+  seoTitle       String?
+  seoDescription String?
+  sortOrder      Int        @default(0)
+  isActive       Boolean    @default(true)
+  products       Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([parentId])
+}
+
+// ─── BRANDS ───────────────────────────────────────────────────────────────────
+
+model Brand {
+  id                   String    @id @default(cuid())
+  slug                 String    @unique
+  name                 String
+  description          String?
+  logoId               String?
+  logo                 Media?    @relation(fields: [logoId], references: [id])
+  isAuthorisedReseller Boolean   @default(false)
+  website              String?
+  sortOrder            Int       @default(0)
+  isActive             Boolean   @default(true)
+  products             Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+}
+
+// ─── TAGS ─────────────────────────────────────────────────────────────────────
+
+model Tag {
+  id       String       @id @default(cuid())
+  name     String       @unique
+  slug     String       @unique
+  products ProductTag[]
+}
+
+model ProductTag {
+  productId String
+  tagId     String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+}
+
+// ─── PRODUCTS ─────────────────────────────────────────────────────────────────
+
+model Product {
+  id               String         @id @default(cuid())
+  slug             String         @unique
+  status           DocumentStatus @default(DRAFT)
+  name             String
+  description      Json
+  draftContent     Json?
+  shortDescription String?
+  price            Decimal        @db.Decimal(10, 2)
+  compareAtPrice   Decimal?       @db.Decimal(10, 2)
+  sku              String?        @unique
+  stock            Int            @default(0)
+  isActive         Boolean        @default(true)
+  isFeatured       Boolean        @default(false)
+  isBestSeller     Boolean        @default(false)
+  weight           Decimal?       @db.Decimal(8, 2)
+  seoTitle         String?
+  seoDescription   String?
+  dealBadge        String?
+  dealPercent      Int?
+  rating           Decimal?       @db.Decimal(3, 2)
+  reviewCount      Int            @default(0)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  brandId    String?
+  brand      Brand?    @relation(fields: [brandId], references: [id])
+
+  images        ProductImage[]
+  variants      ProductVariant[]
+  tags          ProductTag[]
+  collections   CollectionProduct[]
+  revisions     ProductRevision[]
+  reviews       Review[]
+  wishlistItems WishlistItem[]
+  orderItems    OrderItem[]
+  saleProducts  SaleProduct[]
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   String
+  updatedBy   String
+
+  @@index([slug])
+  @@index([status])
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([isFeatured])
+  @@index([isBestSeller])
+  @@index([name])
+}
+
+model ProductVariant {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  options   Json
+  sku       String?  @unique
+  price     Decimal? @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  imageId   String?
+  image     Media?   @relation(fields: [imageId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mediaId   String
+  media     Media   @relation(fields: [mediaId], references: [id])
+  altText   String?
+  position  Int     @default(0)
+
+  @@index([productId])
+}
+
+model ProductRevision {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  snapshot  Json
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+// ─── COLLECTIONS ──────────────────────────────────────────────────────────────
+
+model Collection {
+  id             String              @id @default(cuid())
+  slug           String              @unique
+  name           String
+  description    Json?
+  imageId        String?
+  image          Media?              @relation(fields: [imageId], references: [id])
+  status         DocumentStatus      @default(DRAFT)
+  seoTitle       String?
+  seoDescription String?
+  products       CollectionProduct[]
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slug])
+}
+
+model CollectionProduct {
+  collectionId String
+  productId    String
+  position     Int        @default(0)
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, productId])
+}
+
+// ─── REVIEWS ──────────────────────────────────────────────────────────────────
+
+model Review {
+  id                 String  @id @default(cuid())
+  productId          String
+  product            Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  clerkUserId        String
+  authorName         String
+  rating             Int
+  title              String?
+  body               String
+  isVerifiedPurchase Boolean @default(false)
+  helpfulVotes       Int     @default(0)
+  isApproved         Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([clerkUserId])
+  @@index([isApproved])
+}
+
+// ─── ORDERS ───────────────────────────────────────────────────────────────────
+
+model Order {
+  id              String          @id @default(cuid())
+  orderNumber     String          @unique
+  status          OrderStatus     @default(PENDING)
+  clerkUserId     String
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  shippingAddress Json
+  subtotal        Decimal         @db.Decimal(10, 2)
+  discountAmount  Decimal         @default(0) @db.Decimal(10, 2)
+  shippingCost    Decimal         @default(0) @db.Decimal(10, 2)
+  total           Decimal         @db.Decimal(10, 2)
+  currency        String          @default("ZAR")
+  couponCode      String?
+  notes           String?
+  paymentProvider PaymentProvider @default(YOCO)
+  paymentId       String?
+  paidAt          DateTime?
+  items           OrderItem[]
+
+  orderDate DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clerkUserId])
+  @@index([status])
+  @@index([orderNumber])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  variantId String?
+  name      String
+  sku       String?
+  price     Decimal  @db.Decimal(10, 2)
+  quantity  Int
+  image     String?
+  options   Json?
+
+  @@index([orderId])
+}
+
+// ─── WISHLIST ─────────────────────────────────────────────────────────────────
+
+model WishlistItem {
+  id          String   @id @default(cuid())
+  clerkUserId String
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId   String?
+  notes       String?
+  addedAt     DateTime @default(now())
+
+  @@unique([clerkUserId, productId])
+  @@index([clerkUserId])
+}
+
+// ─── CUSTOMER ADDRESSES ───────────────────────────────────────────────────────
+
+model CustomerAddress {
+  id                   String      @id @default(cuid())
+  clerkUserId          String
+  fullName             String
+  phone                String?
+  streetAddress        String
+  buildingDetails      String?
+  suburb               String?
+  city                 String
+  province             String?
+  postalCode           String?
+  country              String      @default("ZA")
+  isDefault            Boolean     @default(false)
+  addressType          AddressType @default(HOME)
+  deliveryInstructions String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clerkUserId])
+}
+
+// ─── SALES / COUPONS ──────────────────────────────────────────────────────────
+
+model Sale {
+  id                String           @id @default(cuid())
+  name              String
+  couponCode        String           @unique
+  discountType      SaleDiscountType @default(PERCENTAGE)
+  discountValue     Decimal          @db.Decimal(10, 2)
+  minimumOrderValue Decimal?         @db.Decimal(10, 2)
+  description       String?
+  startsAt          DateTime?
+  endsAt            DateTime?
+  isActive          Boolean          @default(true)
+  usageLimit        Int?
+  usageCount        Int              @default(0)
+  products          SaleProduct[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([couponCode])
+  @@index([isActive])
+}
+
+model SaleProduct {
+  saleId    String
+  productId String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([saleId, productId])
+}
+
+// ─── HERO BANNERS ─────────────────────────────────────────────────────────────
+
+model HeroBanner {
+  id             String    @id @default(cuid())
+  title          String
+  subtitle       String?
+  badge          String?
+  bgColor        String    @default("#1a1a2e")
+  ctaText        String?
+  ctaUrl         String?
+  overlayOpacity Int       @default(40)
+  textColor      String    @default("#ffffff")
+  startsAt       DateTime?
+  endsAt         DateTime?
+  mediaId        String?
+  media          Media?    @relation(fields: [mediaId], references: [id])
+  isActive       Boolean   @default(true)
+  sortOrder      Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+// ─── HOMEPAGE SECTIONS ────────────────────────────────────────────────────────
+
+model HomepageSection {
+  id            String                 @id @default(cuid())
+  title         String
+  variant       HomepageSectionVariant @default(FEATURED_PRODUCTS)
+  promoCode     String?
+  promoDiscount String?
+  promoSubtext  String?
+  isActive      Boolean                @default(true)
+  sortOrder     Int                    @default(0)
+  locale        Locale                 @default(BOTH)
+  ctaLabel      String?
+  ctaHref       String?
+  items         HomepageSectionItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model HomepageSectionItem {
+  id            String          @id @default(cuid())
+  sectionId     String
+  section       HomepageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  mediaId       String?
+  media         Media?          @relation(fields: [mediaId], references: [id])
+  title         String?
+  subtitle      String?
+  linkUrl       String?
+  linkText      String?
+  referenceId   String?
+  referenceType String?
+  sortOrder     Int             @default(0)
+
+  @@index([sectionId])
+}
+
+// ─── SITE SETTINGS ────────────────────────────────────────────────────────────
+
+model SiteSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  logoId    String?  @unique
+  logo      Media?   @relation("SettingsLogo", fields: [logoId], references: [id])
+  faviconId String?  @unique
+  favicon   Media?   @relation("SettingsFavicon", fields: [faviconId], references: [id])
+  updatedBy String
+  updatedAt DateTime @updatedAt
+}
+
+// ─── WEBHOOKS ─────────────────────────────────────────────────────────────────
+
+model Webhook {
+  id        String       @id @default(cuid())
+  name      String
+  url       String
+  secret    String
+  events    String[]
+  isActive  Boolean      @default(true)
+  logs      WebhookLog[]
+  createdAt DateTime     @default(now())
+}
+
+model WebhookLog {
+  id         String   @id @default(cuid())
+  webhookId  String
+  webhook    Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event      String
+  payload    Json
+  statusCode Int?
+  response   String?
+  success    Boolean
+  createdAt  DateTime @default(now())
+
+  @@index([webhookId])
+  @@index([createdAt])
+}

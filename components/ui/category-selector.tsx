@@ -1,6 +1,6 @@
 "use client";
 
-import { Category } from "@/sanity.types";
+import { Category } from "@/lib/cms-types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useRouter } from "next/navigation";

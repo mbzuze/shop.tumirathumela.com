@@ -9,9 +9,9 @@
  * response envelopes differ from the original spec doc in several places.
  */
 
-import type { Product, Category, Brand, HeroBanner, HomepageSection, Slug } from '@/sanity.types'
+import type { Product, Category, Brand, HeroBanner, HomepageSection, Slug } from '@/lib/cms-types'
 
-const CMS_BASE = process.env.CMS_API_URL ?? 'https://cms.tumirathumela.com'
+const CMS_BASE = process.env.CMS_API_URL ?? 'https://admin.tumirathumela.com'
 const CMS_API_KEY = process.env.CMS_API_KEY ?? ''
 const CMS_ADMIN_KEY = process.env.CMS_ADMIN_KEY ?? ''
 

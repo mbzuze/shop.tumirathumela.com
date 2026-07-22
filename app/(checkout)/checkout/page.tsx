@@ -10,7 +10,7 @@ import useBasketStore from "@/store/store";
 import useLocationStore from "@/store/locationStore";
 import { formatPrice } from "@/lib/utils";
 import { imageUrl } from "@/lib/imageUrl";
-import type { CustomerAddress } from "@/sanity/lib/addresses";
+import type { CmsAddress as CustomerAddress } from "@/lib/cms-client";
 import { getMyDefaultAddressAction } from "@/actions/addressActions";
 
 type Step = 1 | 2 | 3;
@@ -163,7 +163,7 @@ export default function CheckoutPage() {
         ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
         : "Customer";
 
-      const sanityOrderItems = items.map((item) => ({
+      const orderItems = items.map((item) => ({
         _key: Math.random().toString(36).slice(2),
         product: { _type: "reference", _ref: item.product._id },
         quantity: item.quantity,
@@ -194,7 +194,7 @@ export default function CheckoutPage() {
             Math.round((item.product.price || 0) * 100) * item.quantity,
           description: `SKU: ${item.product.sku || item.product._id}`,
         })),
-        sanityOrderItems,
+        orderItems,
         subtotalAmount: Math.round(subtotal * 100),
         totalDiscount: Math.round(discountAmount * 100),
         successUrl: `${window.location.origin}/success`,

@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import FilterSidebar from "@/components/search/FilterSidebar";
 import ProductThumbnail from "@/components/ProductThumbnail";
-import { getAllCategories } from "@/sanity/lib/products/getAllCategories";
-import { getBestSellers } from "@/sanity/lib/products/getBestSellers";
-import { Product } from "@/sanity.types";
+import { getAllCategories } from "@/lib/cms-client";
+import { getBestSellers } from "@/lib/cms-client";
+import { Product } from "@/lib/cms-types";
 
 interface BestSellersPageProps {
   searchParams: Promise<{

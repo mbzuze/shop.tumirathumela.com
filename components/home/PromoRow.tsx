@@ -1,6 +1,6 @@
 "use client";
 
-import { Category } from "@/sanity.types";
+import { Category } from "@/lib/cms-types";
 import useLocationStore from "@/store/locationStore";
 import Link from "next/link";
 import Image from "next/image";

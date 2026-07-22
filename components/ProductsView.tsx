@@ -1,4 +1,4 @@
-import { Category, Product } from "@/sanity.types";
+import { Category, Product } from "@/lib/cms-types";
 import ProductGrid from "./ProductGrid";
 import { CategorySelectorComponent } from "./ui/category-selector";
 

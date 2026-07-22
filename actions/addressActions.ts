@@ -6,7 +6,7 @@ import {
   getDefaultAddress,
   deleteAddress,
   setDefaultAddress,
-} from "@/sanity/lib/addresses";
+} from "@/lib/cms-client";
 import type { CmsAddress as CustomerAddress } from "@/lib/cms-client";
 
 export async function getMyAddressesAction(): Promise<CustomerAddress[]> {

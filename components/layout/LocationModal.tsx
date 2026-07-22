@@ -5,7 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import useLocationStore from "@/store/locationStore";
 import useUIStore from "@/store/uiStore";
-import type { CustomerAddress } from "@/sanity/lib/addresses";
+import type { CmsAddress as CustomerAddress } from "@/lib/cms-client";
 import { getMyAddressesAction } from "@/actions/addressActions";
 
 const ZA_CITIES = [

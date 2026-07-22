@@ -1,6 +1,6 @@
 "use client";
 
-import { HomepageSection } from "@/sanity.types";
+import { HomepageSection } from "@/lib/cms-types";
 import Image from "next/image";
 import Link from "next/link";
 import { imageUrl } from "@/lib/imageUrl";

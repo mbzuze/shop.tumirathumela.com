@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MenuIcon } from "@sanity/icons";
+import { Menu as MenuIcon } from "lucide-react";
 import useLocationStore from "@/store/locationStore";
 import useUIStore from "@/store/uiStore";
 

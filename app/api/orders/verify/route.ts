@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const CMS_BASE = process.env.CMS_API_URL ?? 'https://cms.tumirathumela.com'
+const CMS_BASE = process.env.CMS_API_URL ?? 'https://admin.tumirathumela.com'
 const CMS_API_KEY = process.env.CMS_API_KEY ?? ''
 
 export async function POST(request: NextRequest) {

@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import crypto from "crypto";
 
-const CMS_BASE = process.env.CMS_API_URL ?? 'https://cms.tumirathumela.com'
+const CMS_BASE = process.env.CMS_API_URL ?? 'https://admin.tumirathumela.com'
 const CMS_API_KEY = process.env.CMS_API_KEY ?? ''
 
 async function updateOrderStatus(orderNumber: string, status: string, paymentId: string) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { HeroBanner } from "@/sanity.types";
+import { HeroBanner } from "@/lib/cms-types";
 import {
   Carousel,
   CarouselContent,

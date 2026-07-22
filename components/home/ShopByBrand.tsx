@@ -1,6 +1,6 @@
 "use client";
 
-import { Brand } from "@/sanity.types";
+import { Brand } from "@/lib/cms-types";
 import {
   Carousel,
   CarouselContent,

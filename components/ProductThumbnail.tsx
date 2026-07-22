@@ -1,7 +1,7 @@
 "use client";
 
 import { imageUrl } from "@/lib/imageUrl";
-import { Product } from "@/sanity.types";
+import { Product } from "@/lib/cms-types";
 import Image from "next/image";
 import Link from "next/link";
 import useLocationStore from "@/store/locationStore";

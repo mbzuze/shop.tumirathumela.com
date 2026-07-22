@@ -8,7 +8,7 @@ import { formatPrice } from "@/lib/utils";
 import Image from "next/image";
 import { imageUrl } from "@/lib/imageUrl";
 import Link from "next/link";
-import { TrolleyIcon } from "@sanity/icons";
+import { ShoppingCart as TrolleyIcon } from "lucide-react";
 
 export default function CartDrawer() {
   const { cartDrawerOpen, setCartDrawer } = useUIStore();

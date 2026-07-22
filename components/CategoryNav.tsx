@@ -1,5 +1,5 @@
-import { getAllCategories } from "@/sanity/lib/products/getAllCategories";
-import { Category } from "@/sanity.types";
+import { getAllCategories } from "@/lib/cms-client";
+import { Category } from "@/lib/cms-types";
 import Link from "next/link";
 
 export default async function CategoryNav() {

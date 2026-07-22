@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import FilterSidebar from "@/components/search/FilterSidebar";
 import ProductThumbnail from "@/components/ProductThumbnail";
-import { getAllCategories } from "@/sanity/lib/products/getAllCategories";
-import { getProductsByCategory } from "@/sanity/lib/products/getProductsByCategory";
+import { getAllCategories } from "@/lib/cms-client";
+import { getProductsByCategory } from "@/lib/cms-client";
 
 async function CategoryPage(
     { params }: { params: Promise<{ slug: string }> }

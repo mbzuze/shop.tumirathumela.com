@@ -5,7 +5,7 @@ import { createOrder } from "@/lib/cms-client";
 export async function POST(request: NextRequest) {
   try {
     const requestBody = await request.json();
-    const { metadata, cancelUrl, failureUrl, successUrl, lineItems, sanityOrderItems, subtotalAmount, totalDiscount, amount } = requestBody;
+    const { metadata, cancelUrl, failureUrl, successUrl, lineItems, orderItems, subtotalAmount, totalDiscount, amount } = requestBody;
 
     const idempotencyKey = uuidv4();
     const orderNumber = `ORD-${uuidv4().split('-')[0].toUpperCase()}`;
@@ -36,8 +36,8 @@ export async function POST(request: NextRequest) {
 
     const json = await resp.json();
 
-    // Build order items from sanityOrderItems (mapped from cart)
-    const items = (sanityOrderItems || []).map((item: { _id?: string; name?: string; product?: { name?: string; sku?: string }; quantity?: number; price?: number; image?: string }) => ({
+    // Build order items from orderItems (mapped from cart)
+    const items = (orderItems || []).map((item: { _id?: string; name?: string; product?: { name?: string; sku?: string }; quantity?: number; price?: number; image?: string }) => ({
       productId: item._id ?? undefined,
       name: item.name ?? item.product?.name ?? 'Unknown',
       sku: item.product?.sku ?? undefined,

@@ -1,8 +1,8 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getProductBySlug } from "@/sanity/lib/products/getProductBySlug";
-import { PortableText } from "next-sanity";
+import { getProductBySlug } from "@/lib/cms-client";
+import { PortableText } from "@portabletext/react";
 import AddToBasketButton from "@/components/AddToBasketButton";
 import ImageGallery from "@/components/product/ImageGallery";
 import BuyNowButton from "@/components/product/BuyNowButton";

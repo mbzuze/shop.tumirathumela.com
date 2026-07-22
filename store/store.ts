@@ -1,4 +1,4 @@
-import { Product } from "@/sanity.types";
+import { Product } from "@/lib/cms-types";
 import { clear } from "console";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";

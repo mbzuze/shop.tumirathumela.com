@@ -1,14 +1,14 @@
 import { Suspense } from "react";
-import { searchProductsByName } from "@/sanity/lib/products/searchProductsByName";
+import { searchProductsByName } from "@/lib/cms-client";
 import ProductThumbnail from "@/components/ProductThumbnail";
 import FilterSidebar from "@/components/search/FilterSidebar";
 import SortSelect from "@/components/search/SortSelect";
-import { Product } from "@/sanity.types";
+import { Product } from "@/lib/cms-types";
 
 // Client wrappers are needed for hooks in SortSelect / FilterSidebar,
 // but this page itself is a server component for SSR performance.
 
-import { getAllCategories } from "@/sanity/lib/products/getAllCategories";
+import { getAllCategories } from "@/lib/cms-client";
 
 interface SearchPageProps {
   searchParams: Promise<{

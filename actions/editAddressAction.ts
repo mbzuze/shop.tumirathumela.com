@@ -2,7 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getAddressesByUser, updateAddress, setDefaultAddress } from "@/sanity/lib/addresses";
+import { getAddressesByUser, updateAddress, setDefaultAddress } from "@/lib/cms-client";
 
 export async function editAddressAction(id: string, formData: FormData) {
   const { userId } = await auth();

@@ -5,9 +5,9 @@ import useUIStore from "@/store/uiStore";
 import { ClerkLoaded, SignedIn, SignedOut, SignInButton, useUser, UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import useLocationStore from "@/store/locationStore";
-import { Category } from "@/sanity.types";
+import { Category } from "@/lib/cms-types";
 import { useState, useMemo } from "react";
-import { ChevronRightIcon, ChevronLeftIcon } from "@sanity/icons";
+import { ChevronRight as ChevronRightIcon, ChevronLeft as ChevronLeftIcon } from "lucide-react";
 
 interface DrawerMenuProps {
   categories: Category[];

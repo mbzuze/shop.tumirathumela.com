@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import Form from "next/form";
-import { SearchIcon, PinIcon, MenuIcon, TrolleyIcon } from "@sanity/icons";
+import { Search as SearchIcon, MapPin as PinIcon, Menu as MenuIcon, ShoppingCart as TrolleyIcon } from "lucide-react";
 import useBasketStore from "@/store/store";
 import useUIStore from "@/store/uiStore";
 import useLocationStore from "@/store/locationStore";
 import { ClerkLoaded, SignedIn } from "@clerk/nextjs";
 import AccountMenu from "./AccountMenu";
 import { useEffect, useState } from "react";
-import { Category } from "@/sanity.types";
+import { Category } from "@/lib/cms-types";
 
 export default function Navbar({ categories }: { categories: Category[] }) {
   const [selectedDept, setSelectedDept] = useState("all");

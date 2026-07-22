@@ -1,6 +1,6 @@
 "use client";
 
-import { Product } from "@/sanity.types";
+import { Product } from "@/lib/cms-types";
 import { AnimatePresence, motion } from "framer-motion";
 import ProductThumbnail from "./ProductThumbnail";
 
