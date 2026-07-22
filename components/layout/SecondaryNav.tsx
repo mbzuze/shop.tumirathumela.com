@@ -26,7 +26,7 @@ export default function SecondaryNav() {
         <Link href="/deals" className="hover:border-white border border-transparent p-1 rounded">
           Today's Deals
         </Link>
-        <Link href="/category/everyday-essentials" className="hover:border-white border border-transparent p-1 rounded hidden sm:block">
+        <Link href="/categories/everyday-essentials" className="hover:border-white border border-transparent p-1 rounded hidden sm:block">
           Everyday Essentials
         </Link>
         <Link href="/best-sellers" className="hover:border-white border border-transparent p-1 rounded">

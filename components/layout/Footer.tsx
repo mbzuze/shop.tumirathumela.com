@@ -26,34 +26,34 @@ export default function Footer() {
           <div>
             <h3 className="font-bold text-lg mb-4">Get to Know Us</h3>
             <ul className="space-y-2 text-gray-300">
-              <li><Link href="#" className="hover:underline">Careers</Link></li>
-              <li><Link href="#" className="hover:underline">Legal Notice</Link></li>
-              <li><Link href="#" className="hover:underline">About TumiraThumela</Link></li>
+              <li><Link href="/careers" className="hover:underline">Careers</Link></li>
+              <li><Link href="/legal-notice" className="hover:underline">Legal Notice</Link></li>
+              <li><Link href="/about" className="hover:underline">About TumiraThumela</Link></li>
             </ul>
           </div>
           <div>
             <h3 className="font-bold text-lg mb-4">Make Money with Us</h3>
             <ul className="space-y-2 text-gray-300">
-              <li><Link href="#" className="hover:underline">Advertise Your Products</Link></li>
+              <li><Link href="/advertise" className="hover:underline">Advertise Your Products</Link></li>
               <li><Link href="/sell" className="hover:underline">Sell on TumiraThumela</Link></li>
-              <li><Link href="#" className="hover:underline">Supply to TumiraThumela</Link></li>
+              <li><Link href="/supply" className="hover:underline">Supply to TumiraThumela</Link></li>
             </ul>
           </div>
           <div>
             <h3 className="font-bold text-lg mb-4">Payment Methods</h3>
             <ul className="space-y-2 text-gray-300">
-              <li><Link href="#" className="hover:underline">Payment Methods Help</Link></li>
-              <li><Link href="#" className="hover:underline">Yoco Information</Link></li>
+              <li><Link href="/payment-methods" className="hover:underline">Payment Methods Help</Link></li>
+              <li><Link href="/payment-methods" className="hover:underline">Yoco &amp; PayFast Information</Link></li>
             </ul>
           </div>
           <div>
             <h3 className="font-bold text-lg mb-4">Let Us Help You</h3>
             <ul className="space-y-2 text-gray-300">
-              <li><Link href="#" className="hover:underline">Track Packages</Link></li>
-              <li><Link href="#" className="hover:underline">Shipping & Delivery</Link></li>
-              <li><Link href="#" className="hover:underline">Returns & Replacements</Link></li>
+              <li><Link href="/track-order" className="hover:underline">Track Packages</Link></li>
+              <li><Link href="/shipping" className="hover:underline">Shipping & Delivery</Link></li>
+              <li><Link href="/returns" className="hover:underline">Returns & Replacements</Link></li>
               <li><Link href="/customer-service" className="hover:underline">Customer Service</Link></li>
-              <li><Link href="#" className="hover:underline">TumiraThumela App</Link></li>
+              <li><Link href="/app" className="hover:underline">TumiraThumela App</Link></li>
             </ul>
           </div>
         </div>
@@ -77,10 +77,10 @@ export default function Footer() {
       {/* Section 4 & 5: Legal & Copyright */}
       <div className="bg-[#131A22] text-white py-8 px-4 text-center">
         <div className="flex flex-wrap justify-center gap-4 text-xs text-gray-300 mb-4">
-          <Link href="#" className="hover:underline">Conditions of Use & Sale</Link>
-          <Link href="#" className="hover:underline">Privacy Notice</Link>
-          <Link href="#" className="hover:underline">Cookies Notice</Link>
-          <Link href="#" className="hover:underline">Legal Notice</Link>
+          <Link href="/terms" className="hover:underline">Conditions of Use & Sale</Link>
+          <Link href="/privacy" className="hover:underline">Privacy Notice</Link>
+          <Link href="/cookies" className="hover:underline">Cookies Notice</Link>
+          <Link href="/legal-notice" className="hover:underline">Legal Notice</Link>
         </div>
         <p className="text-xs text-gray-400">
           © 2025–2026, TumiraThumela.com, Inc. or its affiliates

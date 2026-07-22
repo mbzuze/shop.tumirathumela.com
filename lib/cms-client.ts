@@ -236,6 +236,16 @@ export const getBestSellers = async (categorySlug?: string): Promise<Product[]> 
   } catch (e) { console.error('getBestSellers error:', e); return [] }
 }
 
+export const getDeals = async (params?: { page?: number; pageSize?: number }): Promise<Product[]> => {
+  try {
+    const qs = new URLSearchParams({ deals: 'true' })
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
+    const products = await cmsGet<RawProduct[]>(`/api/cms/v1/products?${qs}`, { revalidate: 60, tags: ['deals'] })
+    return (products ?? []).map(normProduct)
+  } catch (e) { console.error('getDeals error:', e); return [] }
+}
+
 export const getProductsByCategory = async (categorySlug: string): Promise<Product[]> => {
   try {
     const result = await cmsGet<{ products: RawProduct[]; category: unknown }>(
@@ -539,6 +549,22 @@ export const getOrder = async (orderNumber: string, userId: string): Promise<Cms
   } catch (e) {
     if (e instanceof CmsError && (e.status === 404 || e.status === 403)) return null
     console.error('getOrder error:', e)
+    return null
+  }
+}
+
+// Guest order tracking: the CMS returns the order by number alone (no auth),
+// so we verify the caller-supplied email matches before handing back any
+// data — otherwise anyone who guesses an order number could see it.
+export const trackOrder = async (orderNumber: string, email: string): Promise<CmsOrder | null> => {
+  if (!orderNumber?.trim() || !email?.trim()) return null
+  try {
+    const order = await cmsGet<CmsOrder>(`/api/cms/v1/orders/${encodeURIComponent(orderNumber.trim())}`, { revalidate: 0 })
+    if (order.customerEmail?.toLowerCase() !== email.trim().toLowerCase()) return null
+    return order
+  } catch (e) {
+    if (e instanceof CmsError && e.status === 404) return null
+    console.error('trackOrder error:', e)
     return null
   }
 }
