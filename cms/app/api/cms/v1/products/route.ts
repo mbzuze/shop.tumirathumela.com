@@ -16,8 +16,9 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get('category') ?? undefined
     const featured = searchParams.get('featured')
     const bestSellers = searchParams.get('bestSellers')
+    const deals = searchParams.get('deals')
 
-    const cacheKey = CacheKeys.products(page, pageSize, category)
+    const cacheKey = CacheKeys.products(page, pageSize, category, `f${featured ?? ''}b${bestSellers ?? ''}d${deals ?? ''}`)
 
     const result = await withCache(cacheKey, 60, async () => {
       const where = {
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
         ...(category ? { category: { slug: category } } : {}),
         ...(featured === 'true' ? { isFeatured: true } : {}),
         ...(bestSellers === 'true' ? { isBestSeller: true } : {}),
+        ...(deals === 'true' ? { dealBadge: { not: null } } : {}),
       }
 
       const [products, total] = await Promise.all([
@@ -33,7 +35,7 @@ export async function GET(req: NextRequest) {
           where,
           skip,
           take: pageSize,
-          orderBy: { publishedAt: 'desc' },
+          orderBy: deals === 'true' ? { dealPercent: 'desc' } : { publishedAt: 'desc' },
           include: {
             category: { select: { id: true, name: true, slug: true } },
             brand: { select: { id: true, name: true, slug: true } },

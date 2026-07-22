@@ -258,6 +258,20 @@ const CATEGORIES: CategorySpec[] = [
     variants: ['Gold Tone', 'Silver Tone', 'Rose Gold', 'Black', 'Classic'],
     priceRange: [129, 2999],
   },
+  {
+    slug: 'everyday-essentials',
+    name: 'Everyday Essentials',
+    description: 'Household staples, toiletries, and daily necessities.',
+    baseItems: [
+      'Toilet Paper 12-Roll Pack', 'Paper Towel 6-Roll Pack', 'Facial Tissue Box', 'Liquid Hand Soap 500ml',
+      'Dish Washing Liquid 750ml', 'Laundry Detergent 2L', 'Fabric Softener 2L', 'All-Purpose Cleaner Spray',
+      'Bleach 1L', 'Rubbish Bags 50-Pack', 'Toothpaste 100ml', 'Bar Soap 3-Pack',
+      'Shampoo 400ml', 'Deodorant Stick', 'Disposable Razors 5-Pack', 'Cotton Wool Pads',
+      'Sponges & Scourers 6-Pack', 'AA Batteries 8-Pack', 'Light Bulbs LED 4-Pack', 'Matches Box',
+    ],
+    variants: ['Value Pack', 'Family Size', 'Regular', 'Economy'],
+    priceRange: [29, 399],
+  },
 ]
 
 // A modest pool of brand-neutral brand names to distribute across products.
@@ -272,16 +286,36 @@ const BRANDS = [
 // to the requested size instead of the full base-x-variant cross product.
 const TARGET_PER_CATEGORY = 67
 
-function buildProducts(cat: CategorySpec): { name: string; price: number; brandIdx: number }[] {
-  const out: { name: string; price: number; brandIdx: number }[] = []
+interface BuiltProduct {
+  name: string
+  price: number
+  brandIdx: number
+  compareAtPrice: number | null
+  dealBadge: 'limited-time' | 'percent-off' | null
+  dealPercent: number | null
+}
+
+function buildProducts(cat: CategorySpec): BuiltProduct[] {
+  const out: BuiltProduct[] = []
   let i = 0
   outer: for (const base of cat.baseItems) {
     for (const variant of cat.variants) {
       if (out.length >= TARGET_PER_CATEGORY) break outer
+      const price = priceFor(cat.priceRange[0], cat.priceRange[1], i + base.length + variant.length)
+      // Roughly 1 in 6 products is on sale, with a real, consistent markup
+      // so compareAtPrice > price, so /deals has genuine content to show.
+      const onSale = i % 6 === 0
+      const dealPercent = onSale ? 10 + ((i * 7) % 31) : null // 10-40%
+      const compareAtPrice = onSale && dealPercent
+        ? Math.round((price / (1 - dealPercent / 100)) / 10) * 10 - 1
+        : null
       out.push({
         name: `${base} - ${variant}`,
-        price: priceFor(cat.priceRange[0], cat.priceRange[1], i + base.length + variant.length),
+        price,
         brandIdx: i % BRANDS.length,
+        compareAtPrice,
+        dealBadge: onSale ? (i % 12 === 0 ? 'limited-time' : 'percent-off') : null,
+        dealPercent,
       })
       i++
     }
@@ -293,6 +327,13 @@ function buildProducts(cat: CategorySpec): { name: string; price: number; brandI
 
 async function main() {
   console.log('Seeding demo catalog...')
+
+  // Idempotent: wipe any products/media from a previous run of this exact
+  // script (marked by SEED_BY) so re-running to add/adjust fields doesn't
+  // pile up duplicate Media rows or leave stale upserts with update:{} no-ops.
+  const deleted = await prisma.product.deleteMany({ where: { createdBy: SEED_BY } })
+  await prisma.media.deleteMany({ where: { uploadedBy: SEED_BY } })
+  if (deleted.count > 0) console.log(`  cleared ${deleted.count} products from a previous run`)
 
   const brandBySlug = new Map<string, string>()
   for (const [idx, name] of BRANDS.entries()) {
@@ -356,6 +397,9 @@ async function main() {
           ),
           shortDescription: `${p.name} — a ${cat.name.toLowerCase()} favourite.`,
           price: p.price,
+          compareAtPrice: p.compareAtPrice,
+          dealBadge: p.dealBadge,
+          dealPercent: p.dealPercent,
           stock: 10 + (i % 40),
           isActive: true,
           isFeatured,

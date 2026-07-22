@@ -33,8 +33,8 @@ export async function invalidateCache(pattern: string): Promise<void> {
 }
 
 export const CacheKeys = {
-  products: (page: number, pageSize: number, category?: string) =>
-    `cms:products:${page}:${pageSize}:${category ?? 'all'}`,
+  products: (page: number, pageSize: number, category?: string, extra?: string) =>
+    `cms:products:${page}:${pageSize}:${category ?? 'all'}:${extra ?? ''}`,
   product: (slug: string) => `cms:product:${slug}`,
   categories: () => `cms:categories:all`,
   category: (slug: string) => `cms:category:${slug}`,
