@@ -9,7 +9,7 @@ import mime from 'mime-types'
 // wouldn't be visible until a restart. Apache serves this path directly
 // instead (see deploy/apache-admin.conf), bypassing Node entirely.
 const MEDIA_ROOT = process.env.MEDIA_ROOT ?? path.join(process.cwd(), 'media')
-const MEDIA_URL = process.env.MEDIA_URL ?? 'https://admin.tumirathumela.com/media'
+const MEDIA_URL = process.env.MEDIA_URL ?? 'https://admin.tumirathumela.com/uploads'
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',

@@ -44,7 +44,7 @@ if (!fs.existsSync(inputFile)) {
 const SANITY_PROJECT = projectArg?.split('=')[1] ?? process.env.SANITY_PROJECT_ID
 const SANITY_DATASET = datasetArg?.split('=')[1] ?? process.env.SANITY_DATASET ?? 'production'
 const MEDIA_ROOT = process.env.MEDIA_ROOT ?? require('path').join(process.cwd(), 'public', 'media')
-const MEDIA_URL = process.env.MEDIA_URL ?? 'https://admin.tumirathumela.com/media'
+const MEDIA_URL = process.env.MEDIA_URL ?? 'https://admin.tumirathumela.com/uploads'
 const MIGRATION_USER = 'sanity-migration'
 
 type SanityDoc = Record<string, unknown>

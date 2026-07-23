@@ -1,8 +1,9 @@
 # TumiraCMS
 
 Self-hosted headless CMS for `shop.tumirathumela.com`. Runs on
-`admin.tumirathumela.com`, with uploaded media served from its own
-`/public/media` directory (same domain, `/media/...` path).
+`admin.tumirathumela.com`, with uploaded media served by Apache directly
+from disk at `/uploads/...` (not `/media` — that's the CMS's own Media
+Library admin page; see `deploy/apache-admin.conf`).
 
 **Stack:** Next.js 15 · Prisma 5 · PostgreSQL 16 · Redis 7 · Clerk · Tiptap · @dnd-kit
 
@@ -41,13 +42,15 @@ npx prisma migrate deploy
 
 ### 4. Media directory
 
-Media is written to and served from this app's own `public/media` — no
-separate media domain, no nginx. Just make sure the directory is writable by
-the app process:
+Media is written to `cms/media` (deliberately outside `/public` — Next.js's
+static file serving only recognizes files present at process startup, so
+uploads would be invisible until a restart) and served directly by Apache
+at `/uploads/...` (see `deploy/apache-admin.conf`'s `Alias`). Make sure the
+directory is writable by the app process:
 
 ```bash
-mkdir -p public/media
-chmod 755 public/media
+mkdir -p cms/media
+chmod 755 cms/media
 ```
 
 ### 5. Backups (cron)
@@ -90,7 +93,7 @@ To grant admin access to a user:
 | `REDIS_PORT` | Redis port (default `6379`) |
 | `REDIS_PASSWORD` | Redis password |
 | `MEDIA_ROOT` | Absolute path for uploaded media (defaults to `<app>/public/media`) |
-| `MEDIA_URL` | Public base URL for media (`https://admin.tumirathumela.com/media`) |
+| `MEDIA_URL` | Public base URL for media (`https://admin.tumirathumela.com/uploads`) |
 | `CMS_API_KEY` | Secret key for public API (`X-CMS-API-Key` header) |
 | `CMS_API_URL` | Base URL of this CMS (`https://admin.tumirathumela.com`) |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
@@ -145,7 +148,7 @@ Rate limit: **500 req/min** per IP.
 - [ ] Node App environment variables set in cPanel (never committed)
 - [ ] `npm ci && npx prisma migrate deploy` run
 - [ ] `npm run build`, Node App started via cPanel, logs clean
-- [ ] `public/media` exists and is writable
+- [ ] `cms/media` exists and is writable, Apache `/uploads` alias points at it
 - [ ] Backup cron registered
 - [ ] Clerk admin users have `role: "admin"` in publicMetadata
 - [ ] Shop's `.env` on the server has matching `CMS_API_URL` / `CMS_API_KEY`
