@@ -2,7 +2,13 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { ApiError } from './api-response'
 
-export async function requireCmsUser(): Promise<{ userId: string; role: string }> {
+export interface CmsActor {
+  userId: string
+  role: string
+  email: string
+}
+
+export async function requireCmsUser(): Promise<CmsActor> {
   const { userId } = await auth()
   if (!userId) throw new ApiError(401, 'UNAUTHENTICATED', 'Authentication required')
   // Read live from Clerk rather than the session token's sessionClaims —
@@ -13,23 +19,24 @@ export async function requireCmsUser(): Promise<{ userId: string; role: string }
   // custom claim configured.
   const user = await currentUser()
   const role = (user?.publicMetadata as { role?: string } | undefined)?.role ?? 'viewer'
-  return { userId, role }
+  const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress ?? ''
+  return { userId, role, email }
 }
 
-export async function requireCmsAdmin(): Promise<{ userId: string; role: string }> {
-  const { userId, role } = await requireCmsUser()
-  if (role !== 'admin' && role !== 'editor') {
+export async function requireCmsAdmin(): Promise<CmsActor> {
+  const actor = await requireCmsUser()
+  if (actor.role !== 'admin' && actor.role !== 'editor') {
     throw new ApiError(403, 'FORBIDDEN', 'Admin or editor role required')
   }
-  return { userId, role }
+  return actor
 }
 
-export async function requireCmsAdminOnly(): Promise<{ userId: string; role: string }> {
-  const { userId, role } = await requireCmsUser()
-  if (role !== 'admin') {
+export async function requireCmsAdminOnly(): Promise<CmsActor> {
+  const actor = await requireCmsUser()
+  if (actor.role !== 'admin') {
     throw new ApiError(403, 'FORBIDDEN', 'Admin role required')
   }
-  return { userId, role }
+  return actor
 }
 
 export function validateApiKey(req: NextRequest): void {
@@ -46,7 +53,7 @@ export function isValidAdminApiKey(req: NextRequest): boolean {
   return !!key && !!process.env.CMS_ADMIN_KEY && key === process.env.CMS_ADMIN_KEY
 }
 
-export async function requireCmsAdminOrApiKey(req: NextRequest): Promise<{ userId: string; role: string }> {
-  if (isValidAdminApiKey(req)) return { userId: 'system:cms-admin-key', role: 'admin' }
+export async function requireCmsAdminOrApiKey(req: NextRequest): Promise<CmsActor> {
+  if (isValidAdminApiKey(req)) return { userId: 'system:cms-admin-key', role: 'admin', email: 'system' }
   return requireCmsAdmin()
 }

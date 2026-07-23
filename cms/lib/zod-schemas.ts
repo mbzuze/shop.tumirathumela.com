@@ -152,3 +152,14 @@ export const UpdateReviewSchema = z.object({
 export const SettingsValueSchema = z.object({
   value: z.unknown(),
 })
+
+export const CMS_ROLES = ['admin', 'editor', 'viewer'] as const
+
+export const UpdateUserRoleSchema = z.object({
+  role: z.enum(CMS_ROLES),
+})
+
+export const CreateInvitationSchema = z.object({
+  emailAddress: z.string().email(),
+  role: z.enum(CMS_ROLES),
+})

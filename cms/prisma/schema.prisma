@@ -550,3 +550,19 @@ model WebhookLog {
   @@index([webhookId])
   @@index([createdAt])
 }
+
+// ─── AUDIT LOG (CMS user/access management) ────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String
+  actorEmail  String
+  action      String
+  targetId    String?
+  targetEmail String?
+  summary     String
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetId])
+}

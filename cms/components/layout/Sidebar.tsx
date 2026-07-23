@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  Users,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -54,6 +55,7 @@ const navGroups = [
     items: [
       { href: '/settings', label: 'Settings', icon: Settings },
       { href: '/settings/webhooks', label: 'Webhooks', icon: Zap },
+      { href: '/settings/users', label: 'Users & Access', icon: Users },
     ],
   },
 ]
