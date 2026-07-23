@@ -1,11 +1,18 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { ApiError } from './api-response'
 
 export async function requireCmsUser(): Promise<{ userId: string; role: string }> {
-  const { userId, sessionClaims } = await auth()
+  const { userId } = await auth()
   if (!userId) throw new ApiError(401, 'UNAUTHENTICATED', 'Authentication required')
-  const role = (sessionClaims?.publicMetadata as { role?: string } | undefined)?.role ?? 'viewer'
+  // Read live from Clerk rather than the session token's sessionClaims —
+  // publicMetadata only appears there if the Clerk Dashboard's session token
+  // is explicitly customized to include it, which this instance isn't. A
+  // role change via the Backend API would otherwise silently never take
+  // effect until the user's session token happened to be reissued with that
+  // custom claim configured.
+  const user = await currentUser()
+  const role = (user?.publicMetadata as { role?: string } | undefined)?.role ?? 'viewer'
   return { userId, role }
 }
 
