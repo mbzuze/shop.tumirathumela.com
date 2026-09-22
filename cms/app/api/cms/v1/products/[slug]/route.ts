@@ -4,6 +4,7 @@ import { withCache, CacheKeys } from '@/lib/cache'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { validateApiKey } from '@/lib/auth'
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-response'
+import { getReservedQuantities } from '@/lib/inventory'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -46,7 +47,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     })
 
     if (!product) return errorResponse('NOT_FOUND', 'Product not found', 404)
-    return successResponse(product)
+
+    // After the cache lookup, not inside it — see products/route.ts for
+    // why: the relational query stays cached at 60s, "is this still
+    // available" must always be fresh.
+    const reserved = await getReservedQuantities([product.id])
+    return successResponse({
+      ...product,
+      stock: Math.max(0, product.stock - (reserved.get(product.id) ?? 0)),
+    })
   } catch (err) {
     return handleApiError(err)
   }

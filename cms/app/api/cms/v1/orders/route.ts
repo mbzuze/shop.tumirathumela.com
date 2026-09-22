@@ -8,6 +8,7 @@ import { createId } from '@paralleldrive/cuid2'
 import { z } from 'zod'
 import { fireWebhooks } from '@/lib/webhooks'
 import { ShippingAddressSchema } from '@/lib/zod-schemas'
+import { checkAndReserveStock } from '@/lib/inventory'
 
 const CreateOrderSchema = z.object({
   orderNumber: z.string().min(1),
@@ -87,6 +88,15 @@ function isIdempotencyKeyConflict(err: unknown): boolean {
   )
 }
 
+function isDeadlock(err: unknown): boolean {
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034') return true
+  // Defensive backstop: Prisma's deadlock-code mapping isn't confirmed
+  // airtight on every code path. Postgres's own error message for a
+  // detected deadlock (SQLSTATE 40P01) is literally "deadlock detected" —
+  // check for that directly rather than guessing at an internal error shape.
+  return err instanceof Error && err.message.toLowerCase().includes('deadlock detected')
+}
+
 export async function POST(req: NextRequest) {
   try {
     validateApiKey(req)
@@ -109,6 +119,11 @@ export async function POST(req: NextRequest) {
     if (existing) throw new ApiError(409, 'DUPLICATE_ORDER', 'Order number already exists')
 
     const createOrderRow = () => prisma.$transaction(async (tx) => {
+      // The actual oversell-proof guarantee — locks the involved product
+      // rows and throws INSUFFICIENT_STOCK before anything is created if
+      // there isn't enough available. See lib/inventory.ts for why.
+      await checkAndReserveStock(tx, data.items)
+
       const o = await tx.order.create({
         data: {
           id: createId(),
@@ -144,12 +159,37 @@ export async function POST(req: NextRequest) {
         })),
       })
       return o
+    }, {
+      // Under contention on one scarce SKU, this can legitimately spend
+      // real time blocked on the FOR UPDATE lock inside checkAndReserveStock
+      // — longer than Prisma's 5s default timeout would allow before
+      // surfacing an opaque timeout error instead of a clean
+      // INSUFFICIENT_STOCK response.
+      timeout: 10_000,
+      maxWait: 5_000,
     })
+
+    // checkAndReserveStock's sorted per-product locking closes deadlocks
+    // *within* this path, but a different code path (the admin order PATCH
+    // route's stock adjustment on a COMPLETED/reversal transition) also
+    // takes multi-row Product locks and doesn't share this ordering. Treat
+    // a deadlock as an expected, retryable condition rather than assuming
+    // ordering alone eliminates it.
+    async function createOrderRowWithRetry(attemptsLeft = 3): Promise<Order> {
+      try {
+        return await createOrderRow()
+      } catch (err) {
+        if (attemptsLeft > 1 && isDeadlock(err)) {
+          return createOrderRowWithRetry(attemptsLeft - 1)
+        }
+        throw err
+      }
+    }
 
     let order: Order
     let isNew = true
     try {
-      order = await createOrderRow()
+      order = await createOrderRowWithRetry()
     } catch (err) {
       // A concurrent request with the same idempotencyKey won the race to
       // insert first. The unique constraint is the actual guarantee here —

@@ -364,6 +364,10 @@ model Order {
   @@index([clerkUserId])
   @@index([status])
   @@index([orderNumber])
+  // Composite, for lib/inventory.ts's reserved-quantity query — driving
+  // from Order (small, bounded by this filter) rather than OrderItem
+  // (large, grows forever) is the cheaper access path either way.
+  @@index([status, orderDate])
 }
 
 model OrderItem {
@@ -381,6 +385,10 @@ model OrderItem {
   options   Json?
 
   @@index([orderId])
+  // Filtered on by lib/inventory.ts's reserved-quantity query on every
+  // checkout and every public product read — without this, that's a
+  // sequential scan of a table that only ever grows.
+  @@index([productId])
 }
 
 // ─── WISHLIST ─────────────────────────────────────────────────────────────────

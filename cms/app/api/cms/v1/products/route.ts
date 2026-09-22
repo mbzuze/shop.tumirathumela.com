@@ -5,6 +5,7 @@ import { withCache, CacheKeys } from '@/lib/cache'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { validateApiKey } from '@/lib/auth'
 import { successResponse, handleApiError, paginationParams } from '@/lib/api-response'
+import { getReservedQuantities } from '@/lib/inventory'
 
 const PRODUCT_INCLUDE = {
   category: { select: { id: true, name: true, slug: true } },
@@ -41,7 +42,8 @@ export async function GET(req: NextRequest) {
         where: { id: { in: ids }, status: 'PUBLISHED', isActive: true },
         include: PRODUCT_INCLUDE,
       })
-      return successResponse(products.map(serializeProduct))
+      const reserved = await getReservedQuantities(products.map((p) => p.id))
+      return successResponse(withAvailableStock(products.map(serializeProduct), reserved))
     }
 
     const { page, pageSize, skip } = paginationParams(searchParams)
@@ -82,7 +84,14 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    return successResponse(result.products, {
+    // Reservation subtraction happens here, after the cache lookup, not
+    // inside withCache's callback: the expensive relational product query
+    // stays cached at 60s, but "is this still available" is a
+    // numerically-sensitive, time-of-request value and must always be
+    // fresh — caching it would let the storefront show stock that's
+    // already fully reserved by someone else's in-flight order.
+    const reserved = await getReservedQuantities(result.products.map((p) => p.id))
+    return successResponse(withAvailableStock(result.products, reserved), {
       page: result.page,
       pageSize: result.pageSize,
       total: result.total,
@@ -94,6 +103,21 @@ export async function GET(req: NextRequest) {
 }
 
 type ProductWithRelations = Prisma.ProductGetPayload<{ include: typeof PRODUCT_INCLUDE }>
+
+// Applied post-serialization, never inside serializeProduct itself, so the
+// same function works whether its caller cached the underlying product
+// query or not — only the reservation subtraction needs to always be
+// fresh. Admin-facing routes never call this; they show the raw physical
+// Product.stock column, since that's what an admin actually manages.
+function withAvailableStock<T extends { id: string; stock: number }>(
+  products: T[],
+  reserved: Map<string, number>
+): T[] {
+  return products.map((p) => ({
+    ...p,
+    stock: Math.max(0, p.stock - (reserved.get(p.id) ?? 0)),
+  }))
+}
 
 function serializeProduct(p: ProductWithRelations) {
   return {

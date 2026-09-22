@@ -4,6 +4,7 @@ import { requireCmsAdmin, requireCmsAdminOrApiKey } from '@/lib/auth'
 import { successResponse, errorResponse, handleApiError } from '@/lib/api-response'
 import { UpdateOrderStatusSchema } from '@/lib/zod-schemas'
 import { fireWebhooks } from '@/lib/webhooks'
+import { RESERVATION_TTL_MINUTES } from '@/lib/inventory'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -90,22 +91,47 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       }
 
       if (becomingPaid || reversingPaid) {
-        const items = await tx.orderItem.findMany({
-          where: { orderId: id },
-          select: { productId: true, quantity: true },
-        })
-        // Decrement on payment, restore on a later cancel/refund. No floor
-        // at zero: this is a plain atomic increment, not a full stock
-        // reservation, so a genuine concurrent oversell (two people paying
-        // for the last unit within the same window) surfaces as a visibly
-        // negative count rather than being silently hidden.
+        const items = (
+          await tx.orderItem.findMany({
+            where: { orderId: id },
+            select: { productId: true, quantity: true, product: { select: { stock: true } } },
+          })
+        ).sort((a, b) => (a.productId ?? '').localeCompare(b.productId ?? ''))
+        // Sorted by productId — this loop, and checkAndReserveStock's
+        // per-product locking in the order-creation path, now both take
+        // multi-row Product locks. Keeping them in the same order avoids
+        // the two paths deadlocking against each other.
         const sign = becomingPaid ? -1 : 1
+        // Reservations (see lib/inventory.ts) make an oversell from two
+        // people completing payment for the same unit impossible under
+        // normal operation — the order-creation lock is what prevents it,
+        // not this decrement. The one gap that remains: this specific
+        // order's own reservation can lapse (past RESERVATION_TTL_MINUTES)
+        // while its payment is still genuinely in flight, and someone else
+        // legitimately buys the freed-up unit before this one's payment
+        // lands. The order still completes either way — the customer paid,
+        // that's not reversible — this just makes that specific case
+        // visible instead of letting it blend into ordinary negative-stock
+        // noise (which, under this model, would otherwise indicate an
+        // actual bug rather than an accepted, narrow timing edge case).
+        const reservationLapsed =
+          becomingPaid && existing.orderDate < new Date(Date.now() - RESERVATION_TTL_MINUTES * 60_000)
+        let wentNegative = false
         for (const item of items) {
           if (!item.productId) continue // no product link — nothing to adjust
+          if (becomingPaid && item.product && item.product.stock < item.quantity) {
+            wentNegative = true
+          }
           await tx.product.update({
             where: { id: item.productId },
             data: { stock: { increment: sign * item.quantity } },
           })
+        }
+        if (reservationLapsed && wentNegative) {
+          console.error(
+            '[orders] paid after its own reservation lapsed and oversold — verify stock manually:',
+            { orderId: id, orderNumber: existing.orderNumber }
+          )
         }
 
         if (existing.couponCode) {
