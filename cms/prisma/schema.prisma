@@ -342,6 +342,11 @@ model Order {
   couponCode      String?
   notes           String?
   paymentProvider PaymentProvider @default(YOCO)
+  // Yoco checkout id, set when the checkout session is created (before payment).
+  checkoutId      String?
+  // Yoco payment id, set by the payment webhook on payment.succeeded. Distinct
+  // from checkoutId — they are different Yoco objects with different lifetimes,
+  // and the checkout id remains needed as a fallback verification key.
   paymentId       String?
   paidAt          DateTime?
   items           OrderItem[]

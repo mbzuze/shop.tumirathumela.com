@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireCmsAdmin } from '@/lib/auth'
 import { handleApiError, successResponse } from '@/lib/api-response'
@@ -13,7 +13,7 @@ export async function GET(_: NextRequest) {
       orderBy: { sortOrder: 'asc' },
       include: { items: { orderBy: { sortOrder: 'asc' } } },
     })
-    return NextResponse.json(successResponse(sections))
+    return successResponse(sections)
   } catch (e) { return handleApiError(e) }
 }
 
@@ -54,6 +54,6 @@ export async function POST(req: NextRequest) {
     })
 
     await invalidateCache('cms:homepage:*')
-    return NextResponse.json(successResponse(section), { status: 201 })
+    return successResponse(section, undefined, 201)
   } catch (e) { return handleApiError(e) }
 }

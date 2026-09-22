@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireCmsAdmin } from '@/lib/auth'
-import { successResponse, handleApiError } from '@/lib/api-response'
+import { successResponse, errorResponse, handleApiError } from '@/lib/api-response'
 import { CreateCategorySchema } from '@/lib/zod-schemas'
 import { invalidateCache, CacheKeys } from '@/lib/cache'
 import { slugify } from '@/lib/utils'
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     const existing = await prisma.category.findUnique({ where: { slug } })
     if (existing) {
-      return successResponse(null, undefined, 409)
+      return errorResponse('DUPLICATE_SLUG', 'A category with this slug already exists', 409)
     }
 
     const category = await prisma.category.create({

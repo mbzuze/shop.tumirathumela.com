@@ -43,8 +43,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           <p className="text-sm text-slate-700">{address.fullName}</p>
           <p className="text-sm text-slate-500">{address.streetAddress}</p>
           {address.buildingDetails && <p className="text-sm text-slate-500">{address.buildingDetails}</p>}
-          <p className="text-sm text-slate-500">{address.city}{address.province ? `, ${address.province}` : ''}</p>
+          {address.suburb && <p className="text-sm text-slate-500">{address.suburb}</p>}
+          <p className="text-sm text-slate-500">{address.city}{address.province ? `, ${address.province}` : ''}{address.postalCode ? ` ${address.postalCode}` : ''}</p>
           <p className="text-sm text-slate-500">{address.country}</p>
+          {address.phone && <p className="text-sm text-slate-500 mt-1">{address.phone}</p>}
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Payment</p>

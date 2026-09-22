@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { clerkClient } from '@clerk/nextjs/server'
 import { requireCmsAdminOnly } from '@/lib/auth'
 import { handleApiError, successResponse } from '@/lib/api-response'
@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest) {
       status: i.status,
       createdAt: new Date(i.createdAt).toISOString(),
     }))
-    return NextResponse.json(successResponse(invitations))
+    return successResponse(invitations)
   } catch (e) {
     return handleApiError(e)
   }
@@ -44,10 +44,7 @@ export async function POST(req: NextRequest) {
       summary: `Invited ${emailAddress} as "${role}"`,
     })
 
-    return NextResponse.json(
-      successResponse({ id: invitation.id, emailAddress: invitation.emailAddress, status: invitation.status }),
-      { status: 201 }
-    )
+    return successResponse({ id: invitation.id, emailAddress: invitation.emailAddress, status: invitation.status }, undefined, 201)
   } catch (e) {
     return handleApiError(e)
   }

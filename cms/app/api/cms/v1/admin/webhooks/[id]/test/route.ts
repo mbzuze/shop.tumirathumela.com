@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireCmsAdmin } from '@/lib/auth'
 import { handleApiError, successResponse, ApiError } from '@/lib/api-response'
@@ -51,6 +51,6 @@ export async function POST(_: NextRequest, { params }: Ctx) {
       },
     })
 
-    return NextResponse.json(successResponse({ success, statusCode, response }))
+    return successResponse({ success, statusCode, response })
   } catch (e) { return handleApiError(e) }
 }

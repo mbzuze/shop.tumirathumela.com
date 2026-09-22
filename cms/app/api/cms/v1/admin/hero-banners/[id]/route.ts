@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireCmsAdmin } from '@/lib/auth'
 import { handleApiError, successResponse, ApiError } from '@/lib/api-response'
@@ -36,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       },
     })
     await invalidateCache(CacheKeys.heroBanners())
-    return NextResponse.json(successResponse(banner))
+    return successResponse(banner)
   } catch (e) { return handleApiError(e) }
 }
 
@@ -48,6 +48,6 @@ export async function DELETE(_: NextRequest, { params }: Ctx) {
     if (!banner) throw new ApiError(404, 'NOT_FOUND', 'Banner not found')
     await prisma.heroBanner.delete({ where: { id } })
     await invalidateCache(CacheKeys.heroBanners())
-    return NextResponse.json(successResponse({ deleted: true }))
+    return successResponse({ deleted: true })
   } catch (e) { return handleApiError(e) }
 }

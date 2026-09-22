@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateApiKey } from '@/lib/auth'
 import { handleApiError, successResponse, ApiError } from '@/lib/api-response'
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
     })
 
-    return NextResponse.json(successResponse({ addresses }))
+    return successResponse({ addresses })
   } catch (e) { return handleApiError(e) }
 }
 
@@ -73,6 +73,6 @@ export async function POST(req: NextRequest) {
       })
     })
 
-    return NextResponse.json(successResponse(address), { status: 201 })
+    return successResponse(address, undefined, 201)
   } catch (e) { return handleApiError(e) }
 }

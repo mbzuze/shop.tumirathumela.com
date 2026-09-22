@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateApiKey } from '@/lib/auth'
 import { handleApiError, successResponse, ApiError } from '@/lib/api-response'
@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       })
     })
 
-    return NextResponse.json(successResponse(address))
+    return successResponse(address)
   } catch (e) { return handleApiError(e) }
 }
 
@@ -65,6 +65,6 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     const addr = await prisma.customerAddress.findUnique({ where: { id } })
     if (!addr) throw new ApiError(404, 'NOT_FOUND', 'Address not found')
     await prisma.customerAddress.delete({ where: { id } })
-    return NextResponse.json(successResponse({ deleted: true }))
+    return successResponse({ deleted: true })
   } catch (e) { return handleApiError(e) }
 }

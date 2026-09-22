@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireCmsAdmin } from '@/lib/auth'
 import { handleApiError, successResponse } from '@/lib/api-response'
@@ -13,6 +13,6 @@ export async function PATCH(req: NextRequest) {
       ids.map((id, i) => prisma.heroBanner.update({ where: { id }, data: { sortOrder: i } }))
     )
     await invalidateCache(CacheKeys.heroBanners())
-    return NextResponse.json(successResponse({ reordered: true }))
+    return successResponse({ reordered: true })
   } catch (e) { return handleApiError(e) }
 }

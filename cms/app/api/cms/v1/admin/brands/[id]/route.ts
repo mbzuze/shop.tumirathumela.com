@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireCmsAdmin } from '@/lib/auth'
 import { handleApiError, successResponse, ApiError } from '@/lib/api-response'
@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const data = UpdateBrandSchema.parse(body)
     const brand = await prisma.brand.update({ where: { id }, data })
     await invalidateCache(CacheKeys.brands())
-    return NextResponse.json(successResponse(brand))
+    return successResponse(brand)
   } catch (e) { return handleApiError(e) }
 }
 
@@ -36,6 +36,6 @@ export async function DELETE(_: NextRequest, { params }: Ctx) {
     if (count > 0) throw new ApiError(409, 'BRAND_IN_USE', `Cannot delete — ${count} products use this brand`)
     await prisma.brand.delete({ where: { id } })
     await invalidateCache(CacheKeys.brands())
-    return NextResponse.json(successResponse({ deleted: true }))
+    return successResponse({ deleted: true })
   } catch (e) { return handleApiError(e) }
 }

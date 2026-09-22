@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { validateApiKey } from '@/lib/auth'
@@ -7,6 +7,7 @@ import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { createId } from '@paralleldrive/cuid2'
 import { z } from 'zod'
 import { fireWebhooks } from '@/lib/webhooks'
+import { ShippingAddressSchema } from '@/lib/zod-schemas'
 
 const CreateOrderSchema = z.object({
   orderNumber: z.string().min(1),
@@ -30,7 +31,7 @@ const CreateOrderSchema = z.object({
   paymentProvider: z.enum(['YOCO', 'PAYFAST']),
   paymentId: z.string().optional(),
   couponCode: z.string().optional(),
-  shippingAddress: z.record(z.unknown()),
+  shippingAddress: ShippingAddressSchema,
 })
 
 export async function GET(req: NextRequest) {
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
       include: { items: true },
     })
 
-    return NextResponse.json(successResponse({
+    return successResponse({
       orders: orders.map((o) => ({
         ...o,
         subtotal: Number(o.subtotal),
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
         updatedAt: o.updatedAt.toISOString(),
         items: o.items.map((i) => ({ ...i, price: Number(i.price) })),
       })),
-    }))
+    })
   } catch (e) { return handleApiError(e) }
 }
 
@@ -110,11 +111,11 @@ export async function POST(req: NextRequest) {
     })
 
     fireWebhooks('order.created', { orderId: order.id, orderNumber: order.orderNumber }).catch(() => {})
-    return NextResponse.json(successResponse({
+    return successResponse({
       ...order,
       subtotal: Number(order.subtotal),
       total: Number(order.total),
       orderDate: order.orderDate.toISOString(),
-    }), { status: 201 })
+    }, undefined, 201)
   } catch (e) { return handleApiError(e) }
 }

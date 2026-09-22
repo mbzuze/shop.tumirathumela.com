@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { requireCmsAdmin } from '@/lib/auth'
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
       include: { _count: { select: { products: true } } },
     })
-    return NextResponse.json(successResponse(collections))
+    return successResponse(collections)
   } catch (e) { return handleApiError(e) }
 }
 
@@ -47,6 +47,6 @@ export async function POST(req: NextRequest) {
       return col
     })
 
-    return NextResponse.json(successResponse(collection), { status: 201 })
+    return successResponse(collection, undefined, 201)
   } catch (e) { return handleApiError(e) }
 }

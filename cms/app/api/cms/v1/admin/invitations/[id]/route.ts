@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { clerkClient } from '@clerk/nextjs/server'
 import { requireCmsAdminOnly } from '@/lib/auth'
 import { handleApiError, successResponse } from '@/lib/api-response'
@@ -21,7 +21,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       summary: `Revoked invitation for ${revoked.emailAddress}`,
     })
 
-    return NextResponse.json(successResponse({ id: revoked.id }))
+    return successResponse({ id: revoked.id })
   } catch (e) {
     return handleApiError(e)
   }

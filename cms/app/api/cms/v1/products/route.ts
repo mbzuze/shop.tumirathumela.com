@@ -6,12 +6,44 @@ import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { validateApiKey } from '@/lib/auth'
 import { successResponse, handleApiError, paginationParams } from '@/lib/api-response'
 
+const PRODUCT_INCLUDE = {
+  category: { select: { id: true, name: true, slug: true } },
+  brand: { select: { id: true, name: true, slug: true } },
+  images: {
+    include: { media: true },
+    orderBy: { position: 'asc' as const },
+    take: 1,
+  },
+  variants: { include: { image: true } },
+  tags: { include: { tag: true } },
+} satisfies Prisma.ProductInclude
+
 export async function GET(req: NextRequest) {
   try {
     validateApiKey(req)
     await rateLimit(getClientIp(req), 100, 60)
 
     const { searchParams } = req.nextUrl
+
+    // Server-side checkout repricing: given a set of ids, return exactly
+    // those published products with trusted current prices. Deliberately
+    // bypasses withCache — this is the pricing-authoritative path, and
+    // CacheKeys.products() has no slot for an id set; caching it would
+    // either collide with the paginated cache or let checkout charge a
+    // stale price for up to the 60s TTL after an edit (product mutations
+    // only invalidate the slug-keyed cache entries, never an id-keyed one).
+    const idsParam = searchParams.get('ids')
+    if (idsParam) {
+      const ids = [...new Set(idsParam.split(',').map((s) => s.trim()).filter(Boolean))].slice(0, 100)
+      if (ids.length === 0) return successResponse([])
+
+      const products = await prisma.product.findMany({
+        where: { id: { in: ids }, status: 'PUBLISHED', isActive: true },
+        include: PRODUCT_INCLUDE,
+      })
+      return successResponse(products.map(serializeProduct))
+    }
+
     const { page, pageSize, skip } = paginationParams(searchParams)
     const category = searchParams.get('category') ?? undefined
     const featured = searchParams.get('featured')
@@ -36,17 +68,7 @@ export async function GET(req: NextRequest) {
           skip,
           take: pageSize,
           orderBy: deals === 'true' ? { dealPercent: 'desc' } : { publishedAt: 'desc' },
-          include: {
-            category: { select: { id: true, name: true, slug: true } },
-            brand: { select: { id: true, name: true, slug: true } },
-            images: {
-              include: { media: true },
-              orderBy: { position: 'asc' },
-              take: 1,
-            },
-            variants: { include: { image: true } },
-            tags: { include: { tag: true } },
-          },
+          include: PRODUCT_INCLUDE,
         }),
         prisma.product.count({ where }),
       ])
@@ -71,15 +93,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-type ProductWithRelations = Prisma.ProductGetPayload<{
-  include: {
-    category: { select: { id: true; name: true; slug: true } }
-    brand: { select: { id: true; name: true; slug: true } }
-    images: { include: { media: true }; orderBy: { position: 'asc' }; take: 1 }
-    variants: { include: { image: true } }
-    tags: { include: { tag: true } }
-  }
-}>
+type ProductWithRelations = Prisma.ProductGetPayload<{ include: typeof PRODUCT_INCLUDE }>
 
 function serializeProduct(p: ProductWithRelations) {
   return {

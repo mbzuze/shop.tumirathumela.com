@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { clerkClient } from '@clerk/nextjs/server'
 import { requireCmsAdminOnly } from '@/lib/auth'
 import { handleApiError, successResponse } from '@/lib/api-response'
@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest) {
       lastSignInAt: u.lastSignInAt ? new Date(u.lastSignInAt).toISOString() : null,
     }))
 
-    return NextResponse.json(successResponse(users))
+    return successResponse(users)
   } catch (e) {
     return handleApiError(e)
   }

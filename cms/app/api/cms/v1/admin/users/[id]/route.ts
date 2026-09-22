@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { clerkClient } from '@clerk/nextjs/server'
 import { requireCmsAdminOnly } from '@/lib/auth'
 import { handleApiError, successResponse, errorResponse } from '@/lib/api-response'
@@ -48,7 +48,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       summary: `Set role to "${role}" for ${targetEmail} (was "${currentRole}")`,
     })
 
-    return NextResponse.json(successResponse({ id: updated.id, role }))
+    return successResponse({ id: updated.id, role })
   } catch (e) {
     return handleApiError(e)
   }

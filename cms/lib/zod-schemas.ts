@@ -139,9 +139,33 @@ export const CreateHomepageSectionSchema = z.object({
 
 export const UpdateHomepageSectionSchema = CreateHomepageSectionSchema.partial()
 
+// `status` is optional so the shop can attach a gateway id without forcing a
+// status transition. `checkoutId` and `paymentId` are distinct Yoco objects:
+// the checkout is created before payment, the payment exists only after it.
 export const UpdateOrderStatusSchema = z.object({
-  status: z.enum(['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED', 'REFUNDED']),
+  status: z.enum(['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED', 'REFUNDED']).optional(),
   notes: z.string().max(1000).optional(),
+  checkoutId: z.string().max(255).optional(),
+  paymentId: z.string().max(255).optional(),
+}).refine(
+  (o) => o.status !== undefined || o.notes !== undefined || o.checkoutId !== undefined || o.paymentId !== undefined,
+  { message: 'At least one field must be provided' },
+)
+
+// Mirrors `model CustomerAddress`. `province`/`postalCode` stay optional here
+// (ZW addresses, future countries) — the ZA-requires-province business rule
+// lives in the shop's checkout route, not at this storage boundary.
+export const ShippingAddressSchema = z.object({
+  fullName: z.string().min(1).max(200),
+  phone: z.string().min(1).max(40),
+  streetAddress: z.string().min(1).max(300),
+  buildingDetails: z.string().max(200).optional(),
+  suburb: z.string().max(120).optional(),
+  city: z.string().min(1).max(120),
+  province: z.string().max(120).optional(),
+  postalCode: z.string().max(20).optional(),
+  country: z.string().min(2).max(2),
+  deliveryInstructions: z.string().max(500).optional(),
 })
 
 export const UpdateReviewSchema = z.object({

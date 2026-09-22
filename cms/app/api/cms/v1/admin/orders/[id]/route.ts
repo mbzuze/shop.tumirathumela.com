@@ -48,18 +48,27 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const order = await prisma.order.update({
       where: { id },
       data: {
-        status: data.status,
+        ...(data.status ? { status: data.status } : {}),
         ...(data.notes ? { notes: data.notes } : {}),
+        ...(data.checkoutId ? { checkoutId: data.checkoutId } : {}),
+        ...(data.paymentId ? { paymentId: data.paymentId } : {}),
         ...(data.status === 'COMPLETED' && !existing.paidAt ? { paidAt: new Date() } : {}),
       },
     })
 
-    await fireWebhooks('order.updated', { id: order.id, orderNumber: order.orderNumber, status: order.status })
+    // Only a real status transition is webhook-worthy — attaching a gateway
+    // id (checkoutId at order creation, paymentId from the payment webhook)
+    // must not itself fan out a spurious order.updated to every subscriber.
+    if (data.status) {
+      await fireWebhooks('order.updated', { id: order.id, orderNumber: order.orderNumber, status: order.status })
+    }
 
     return successResponse({
       id: order.id,
       orderNumber: order.orderNumber,
       status: order.status,
+      checkoutId: order.checkoutId,
+      paymentId: order.paymentId,
       updatedAt: order.updatedAt.toISOString(),
     })
   } catch (err) {

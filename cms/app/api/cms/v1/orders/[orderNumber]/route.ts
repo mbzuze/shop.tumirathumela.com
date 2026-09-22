@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateApiKey } from '@/lib/auth'
 import { handleApiError, successResponse, ApiError } from '@/lib/api-response'
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     if (!order) throw new ApiError(404, 'NOT_FOUND', 'Order not found')
     if (userId && order.clerkUserId !== userId) throw new ApiError(403, 'FORBIDDEN', 'Access denied')
 
-    return NextResponse.json(successResponse({
+    return successResponse({
       ...order,
       subtotal: Number(order.subtotal),
       discountAmount: Number(order.discountAmount),
@@ -30,6 +30,6 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       orderDate: order.orderDate.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
       items: order.items.map((i) => ({ ...i, price: Number(i.price) })),
-    }))
+    })
   } catch (e) { return handleApiError(e) }
 }

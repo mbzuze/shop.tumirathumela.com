@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireCmsAdmin } from '@/lib/auth'
 import { handleApiError, successResponse, ApiError } from '@/lib/api-response'
@@ -71,7 +71,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     })
 
     await invalidateCache('cms:homepage:*')
-    return NextResponse.json(successResponse(section))
+    return successResponse(section)
   } catch (e) { return handleApiError(e) }
 }
 
@@ -83,6 +83,6 @@ export async function DELETE(_: NextRequest, { params }: Ctx) {
     if (!sec) throw new ApiError(404, 'NOT_FOUND', 'Section not found')
     await prisma.homepageSection.delete({ where: { id } })
     await invalidateCache('cms:homepage:*')
-    return NextResponse.json(successResponse({ deleted: true }))
+    return successResponse({ deleted: true })
   } catch (e) { return handleApiError(e) }
 }

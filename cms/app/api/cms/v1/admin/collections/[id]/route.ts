@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { requireCmsAdmin } from '@/lib/auth'
@@ -20,7 +20,7 @@ export async function GET(_: NextRequest, { params }: Ctx) {
       },
     })
     if (!collection) throw new ApiError(404, 'NOT_FOUND', 'Collection not found')
-    return NextResponse.json(successResponse(collection))
+    return successResponse(collection)
   } catch (e) { return handleApiError(e) }
 }
 
@@ -60,7 +60,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     })
 
     await invalidateCache(CacheKeys.collection(collection.slug))
-    return NextResponse.json(successResponse(collection))
+    return successResponse(collection)
   } catch (e) { return handleApiError(e) }
 }
 
@@ -72,6 +72,6 @@ export async function DELETE(_: NextRequest, { params }: Ctx) {
     if (!col) throw new ApiError(404, 'NOT_FOUND', 'Collection not found')
     await prisma.collection.delete({ where: { id } })
     await invalidateCache(CacheKeys.collection(col.slug))
-    return NextResponse.json(successResponse({ deleted: true }))
+    return successResponse({ deleted: true })
   } catch (e) { return handleApiError(e) }
 }
