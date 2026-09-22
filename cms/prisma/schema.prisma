@@ -351,6 +351,13 @@ model Order {
   paidAt          DateTime?
   items           OrderItem[]
 
+  // Client-generated, sent once per distinct checkout attempt (the shop
+  // regenerates it only when the cart/address/coupon actually changes, not
+  // on every click). A unique constraint makes duplicate-order prevention a
+  // database guarantee rather than a check-then-create race: two concurrent
+  // requests with the same key can only ever result in one Order row.
+  idempotencyKey String? @unique
+
   orderDate DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { Prisma } from '@prisma/client'
+import { Prisma, type Order } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { validateApiKey } from '@/lib/auth'
 import { handleApiError, successResponse, ApiError } from '@/lib/api-response'
@@ -32,7 +32,23 @@ const CreateOrderSchema = z.object({
   paymentId: z.string().optional(),
   couponCode: z.string().optional(),
   shippingAddress: ShippingAddressSchema,
+  // Client-generated, one per distinct checkout attempt. See the schema
+  // comment on Order.idempotencyKey for the guarantee this provides.
+  idempotencyKey: z.string().min(1).max(200).optional(),
 })
+
+function serializeOrder(order: Order) {
+  return {
+    ...order,
+    subtotal: Number(order.subtotal),
+    discountAmount: Number(order.discountAmount),
+    shippingCost: Number(order.shippingCost),
+    total: Number(order.total),
+    orderDate: order.orderDate.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+    paidAt: order.paidAt?.toISOString() ?? null,
+  }
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -63,6 +79,14 @@ export async function GET(req: NextRequest) {
   } catch (e) { return handleApiError(e) }
 }
 
+function isIdempotencyKeyConflict(err: unknown): boolean {
+  return (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    err.code === 'P2002' &&
+    (err.meta?.target as string[] | undefined)?.includes('idempotencyKey') === true
+  )
+}
+
 export async function POST(req: NextRequest) {
   try {
     validateApiKey(req)
@@ -70,10 +94,21 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const data = CreateOrderSchema.parse(body)
 
+    // Fast path: a prior request with this exact key already succeeded.
+    // Return that order rather than erroring or creating a duplicate — this
+    // is what makes a retried or double-submitted checkout return the same
+    // order instead of two.
+    if (data.idempotencyKey) {
+      const existingByKey = await prisma.order.findUnique({ where: { idempotencyKey: data.idempotencyKey } })
+      if (existingByKey) {
+        return successResponse(serializeOrder(existingByKey), undefined, 200)
+      }
+    }
+
     const existing = await prisma.order.findUnique({ where: { orderNumber: data.orderNumber } })
     if (existing) throw new ApiError(409, 'DUPLICATE_ORDER', 'Order number already exists')
 
-    const order = await prisma.$transaction(async (tx) => {
+    const createOrderRow = () => prisma.$transaction(async (tx) => {
       const o = await tx.order.create({
         data: {
           id: createId(),
@@ -92,6 +127,7 @@ export async function POST(req: NextRequest) {
           paymentId: data.paymentId ?? null,
           couponCode: data.couponCode ?? null,
           shippingAddress: data.shippingAddress as Prisma.InputJsonValue,
+          idempotencyKey: data.idempotencyKey ?? null,
           orderDate: new Date(),
         },
       })
@@ -110,12 +146,31 @@ export async function POST(req: NextRequest) {
       return o
     })
 
-    fireWebhooks('order.created', { orderId: order.id, orderNumber: order.orderNumber }).catch(() => {})
-    return successResponse({
-      ...order,
-      subtotal: Number(order.subtotal),
-      total: Number(order.total),
-      orderDate: order.orderDate.toISOString(),
-    }, undefined, 201)
+    let order: Order
+    let isNew = true
+    try {
+      order = await createOrderRow()
+    } catch (err) {
+      // A concurrent request with the same idempotencyKey won the race to
+      // insert first. The unique constraint is the actual guarantee here —
+      // this fast path above is just the common case. Return the winner's
+      // order rather than erroring.
+      if (data.idempotencyKey && isIdempotencyKeyConflict(err)) {
+        const winner = await prisma.order.findUnique({ where: { idempotencyKey: data.idempotencyKey } })
+        if (winner) {
+          order = winner
+          isNew = false
+        } else {
+          throw err
+        }
+      } else {
+        throw err
+      }
+    }
+
+    if (isNew) {
+      fireWebhooks('order.created', { orderId: order.id, orderNumber: order.orderNumber }).catch(() => {})
+    }
+    return successResponse(serializeOrder(order), undefined, isNew ? 201 : 200)
   } catch (e) { return handleApiError(e) }
 }
