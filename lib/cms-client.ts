@@ -603,6 +603,10 @@ export const createOrder = async (order: {
   paymentId?: string
   couponCode?: string
   shippingAddress: Record<string, unknown>
+  // One per distinct checkout attempt — see the schema comment on
+  // Order.idempotencyKey. A retried or double-submitted request with the
+  // same key returns the original order rather than creating a duplicate.
+  idempotencyKey?: string
 }): Promise<CmsOrder> => {
   return cmsPost<CmsOrder>('/api/cms/v1/orders', order)
 }

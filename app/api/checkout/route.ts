@@ -60,6 +60,12 @@ const CheckoutBodySchema = z
     address: AddressInputSchema.optional(),
     deliverySpeed: z.enum(["standard", "express"]),
     couponCode: z.string().trim().max(50).optional(),
+    // One per distinct checkout attempt — the client regenerates it only
+    // when the cart/address/coupon actually changes, not on every click.
+    // Lets a retried or double-submitted request return the same order
+    // instead of creating a second one (enforced by a DB unique constraint
+    // on the CMS side, not just this check).
+    idempotencyKey: z.string().min(1).max(200).optional(),
   })
   .refine((b) => Boolean(b.addressId) !== Boolean(b.address), {
     message: "Provide exactly one of addressId or address",
@@ -153,6 +159,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Advisory, not a reservation: this reduces the racy window without
+    // holding stock for the duration of checkout. Two concurrent checkouts
+    // can still both pass this check for the same last unit — the
+    // COMPLETED-transition stock decrement is the actual source of truth
+    // and can go negative in that case (see the admin order PATCH route).
+    const outOfStock = body.items
+      .map((item) => ({
+        productId: item.productId,
+        requested: item.quantity,
+        available: byId.get(item.productId)!.stockCount ?? 0,
+      }))
+      .filter((l) => l.requested > l.available);
+    if (outOfStock.length > 0) {
+      return NextResponse.json({ error: "OUT_OF_STOCK", items: outOfStock }, { status: 409 });
+    }
+
     const lines = body.items.map((item) => {
       const p = byId.get(item.productId)!;
       const unitCents = Math.round((p.price ?? 0) * 100);
@@ -222,6 +244,7 @@ export async function POST(request: NextRequest) {
         paymentProvider: "YOCO",
         couponCode,
         shippingAddress: address,
+        idempotencyKey: body.idempotencyKey,
       });
 
     let order;
@@ -238,6 +261,62 @@ export async function POST(request: NextRequest) {
     }
 
     const base = process.env.NEXT_PUBLIC_BASE_URL;
+
+    // Idempotent replay: this order already exists and already has a Yoco
+    // checkout attached (createOrder returned the pre-existing row instead
+    // of a new one). Don't open a second checkout for it. Note that even a
+    // genuinely concurrent pair of requests racing past this exact check is
+    // still safe: both send Yoco's own Idempotency-Key as order.id, and
+    // Yoco's API (confirmed against its docs) returns the identical
+    // checkout for repeated requests with the same key for 24 hours, rather
+    // than creating a second one.
+    if (order.checkoutId) {
+      if (order.status === "COMPLETED") {
+        return NextResponse.json({
+          redirectUrl: `${base}/success?order=${order.orderNumber}`,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+        });
+      }
+      try {
+        const resp = await fetch(`https://payments.yoco.com/api/checkouts/${order.checkoutId}`, {
+          headers: { Authorization: `Bearer ${process.env.YOCO_SECRET_KEY}` },
+        });
+        if (resp.ok) {
+          const existingCheckout = await resp.json();
+          if (existingCheckout.status === "completed") {
+            return NextResponse.json({
+              redirectUrl: `${base}/success?order=${order.orderNumber}`,
+              orderId: order.id,
+              orderNumber: order.orderNumber,
+            });
+          }
+          if (existingCheckout.status !== "expired" && existingCheckout.redirectUrl) {
+            return NextResponse.json({
+              redirectUrl: existingCheckout.redirectUrl,
+              orderId: order.id,
+              orderNumber: order.orderNumber,
+            });
+          }
+          // status === "expired" (or no redirectUrl for some other reason)
+          // — fall through and open a fresh checkout for this same order.
+        } else if (resp.status !== 404) {
+          // Yoco is erroring, not just "doesn't recognise this id" — don't
+          // risk opening a second checkout while we can't see the existing
+          // one's real state.
+          throw new Error(`Could not verify existing checkout: ${resp.status}`);
+        }
+        // 404: Yoco has no record of this checkout id — safe to open a new
+        // one for this same order below.
+      } catch (err) {
+        console.error("[checkout] could not resume existing checkout for", order.orderNumber, err);
+        return NextResponse.json(
+          { error: "We could not resume your payment. Please try again shortly." },
+          { status: 502 }
+        );
+      }
+    }
+
     let yocoJson: { id: string; redirectUrl?: string };
     try {
       const resp = await fetch("https://payments.yoco.com/api/checkouts", {

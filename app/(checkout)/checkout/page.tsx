@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
@@ -111,6 +111,14 @@ export default function CheckoutPage() {
   // Step 3 — Delivery speed
   const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed>("standard");
 
+  // One idempotency key per distinct checkout attempt. Reused across
+  // retries of the same submit (e.g. a double-click that slips past the
+  // isSubmitting disable, or the user clicking "Place order" again after a
+  // transient error) as long as nothing that defines the order has changed;
+  // regenerated the moment it has, so an intentionally different order
+  // isn't merged with a stale one.
+  const idempotencyRef = useRef<{ signature: string; key: string } | null>(null);
+
   const speedOptions = (Object.keys(SHIPPING_ZAR[deliveryCountry]) as DeliverySpeed[]).filter(
     (s) => SHIPPING_ZAR[deliveryCountry][s] !== null
   );
@@ -187,21 +195,31 @@ export default function CheckoutPage() {
       // from trusted CMS data rather than any amount computed here. `total`,
       // `subtotal` etc. below are the client's own estimate for display; they
       // are never sent as the amount to charge.
+      const orderItems = items.map((item) => ({
+        productId: item.product._id,
+        quantity: item.quantity,
+      }));
+      const addressInput = {
+        phone,
+        streetAddress,
+        city,
+        province: deliveryCountry === "ZA" ? province : undefined,
+        postalCode,
+        country: deliveryCountry,
+      };
+      const couponCode = appliedCoupon?.code || undefined;
+
+      const signature = JSON.stringify({ items: orderItems, address: addressInput, deliverySpeed, couponCode });
+      if (idempotencyRef.current?.signature !== signature) {
+        idempotencyRef.current = { signature, key: crypto.randomUUID() };
+      }
+
       const payload = {
-        items: items.map((item) => ({
-          productId: item.product._id,
-          quantity: item.quantity,
-        })),
-        address: {
-          phone,
-          streetAddress,
-          city,
-          province: deliveryCountry === "ZA" ? province : undefined,
-          postalCode,
-          country: deliveryCountry,
-        },
+        items: orderItems,
+        address: addressInput,
         deliverySpeed,
-        couponCode: appliedCoupon?.code || undefined,
+        couponCode,
+        idempotencyKey: idempotencyRef.current.key,
       };
 
       const res = await fetch("/api/checkout", {
@@ -215,6 +233,11 @@ export default function CheckoutPage() {
         if (data.error === "CART_STALE") {
           throw new Error(
             "One or more items in your basket are no longer available. Please remove them and try again."
+          );
+        }
+        if (data.error === "OUT_OF_STOCK") {
+          throw new Error(
+            "One or more items in your basket don't have enough stock available. Please adjust the quantities and try again."
           );
         }
         throw new Error(data.issues?.[0]?.message || data.error || "Failed to create checkout");
