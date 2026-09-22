@@ -164,9 +164,14 @@ export default function CheckoutPage() {
         : "Customer";
 
       const orderItems = items.map((item) => ({
-        _key: Math.random().toString(36).slice(2),
-        product: { _type: "reference", _ref: item.product._id },
+        productId: item.product._id,
+        name: item.product.name || "Product",
+        sku: item.product.sku || undefined,
         quantity: item.quantity,
+        price: item.product.price || 0,
+        image: item.product.images?.[0]
+          ? imageUrl(item.product.images[0]).url()
+          : undefined,
       }));
 
       const payload = {
@@ -196,6 +201,7 @@ export default function CheckoutPage() {
         })),
         orderItems,
         subtotalAmount: Math.round(subtotal * 100),
+        shippingAmount: Math.round(shipping * 100),
         totalDiscount: Math.round(discountAmount * 100),
         successUrl: `${window.location.origin}/success`,
         cancelUrl: `${window.location.origin}/checkout`,

@@ -5,7 +5,7 @@ import { createOrder } from "@/lib/cms-client";
 export async function POST(request: NextRequest) {
   try {
     const requestBody = await request.json();
-    const { metadata, cancelUrl, failureUrl, successUrl, lineItems, orderItems, subtotalAmount, totalDiscount, amount } = requestBody;
+    const { metadata, cancelUrl, failureUrl, successUrl, orderItems, subtotalAmount, shippingAmount, totalDiscount, amount } = requestBody;
 
     const idempotencyKey = uuidv4();
     const orderNumber = `ORD-${uuidv4().split('-')[0].toUpperCase()}`;
@@ -37,13 +37,13 @@ export async function POST(request: NextRequest) {
     const json = await resp.json();
 
     // Build order items from orderItems (mapped from cart)
-    const items = (orderItems || []).map((item: { _id?: string; name?: string; product?: { name?: string; sku?: string }; quantity?: number; price?: number; image?: string }) => ({
-      productId: item._id ?? undefined,
-      name: item.name ?? item.product?.name ?? 'Unknown',
-      sku: item.product?.sku ?? undefined,
+    const items = (orderItems || []).map((item: { productId?: string; name?: string; sku?: string; quantity?: number; price?: number; image?: string }) => ({
+      productId: item.productId || undefined,
+      name: item.name || 'Unknown',
+      sku: item.sku || undefined,
       quantity: item.quantity ?? 1,
       price: item.price ?? 0,
-      image: item.image ?? undefined,
+      image: item.image || undefined,
     }))
 
     const addressParts = metadata.shippingAddress?.split(', ') || []
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       items,
       subtotal: subtotalAmount ? subtotalAmount / 100 : amount / 100,
       discountAmount: totalDiscount ? totalDiscount / 100 : 0,
-      shippingCost: 0,
+      shippingCost: shippingAmount ? shippingAmount / 100 : 0,
       total: amount / 100,
       currency: 'ZAR',
       paymentProvider: 'YOCO',
@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ...json, orderId: order.id, orderNumber: order.orderNumber })
   } catch (err: unknown) {
+    console.error('[checkout]', err)
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 400 })
   }
