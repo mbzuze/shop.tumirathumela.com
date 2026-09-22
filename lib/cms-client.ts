@@ -16,7 +16,12 @@ const CMS_API_KEY = process.env.CMS_API_KEY ?? ''
 const CMS_ADMIN_KEY = process.env.CMS_ADMIN_KEY ?? ''
 
 export class CmsError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  constructor(
+    public status: number,
+    public code: string,
+    message: string,
+    public details?: Record<string, unknown>
+  ) {
     super(message)
   }
 }
@@ -32,7 +37,7 @@ async function cmsGet<T>(path: string, options: { admin?: boolean; revalidate?: 
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new CmsError(res.status, body?.error?.code ?? 'UNKNOWN', body?.error?.message ?? `CMS request failed: ${res.status}`)
+    throw new CmsError(res.status, body?.error?.code ?? 'UNKNOWN', body?.error?.message ?? `CMS request failed: ${res.status}`, body?.error?.details)
   }
   const json = await res.json()
   return json.data as T
@@ -48,7 +53,7 @@ async function cmsPost<T>(path: string, body: unknown, options: { admin?: boolea
   })
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}))
-    throw new CmsError(res.status, errBody?.error?.code ?? 'UNKNOWN', errBody?.error?.message ?? 'CMS write failed')
+    throw new CmsError(res.status, errBody?.error?.code ?? 'UNKNOWN', errBody?.error?.message ?? 'CMS write failed', errBody?.error?.details)
   }
   const json = await res.json()
   return json.data as T
@@ -69,7 +74,7 @@ async function cmsPatch<T>(path: string, body: unknown, options: { admin?: boole
   })
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}))
-    throw new CmsError(res.status, errBody?.error?.code ?? 'UNKNOWN', errBody?.error?.message ?? 'CMS update failed')
+    throw new CmsError(res.status, errBody?.error?.code ?? 'UNKNOWN', errBody?.error?.message ?? 'CMS update failed', errBody?.error?.details)
   }
   const json = await res.json()
   return json.data as T
@@ -84,7 +89,7 @@ async function cmsDelete(path: string, options: { admin?: boolean } = {}): Promi
   })
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}))
-    throw new CmsError(res.status, errBody?.error?.code ?? 'UNKNOWN', errBody?.error?.message ?? 'CMS delete failed')
+    throw new CmsError(res.status, errBody?.error?.code ?? 'UNKNOWN', errBody?.error?.message ?? 'CMS delete failed', errBody?.error?.details)
   }
 }
 

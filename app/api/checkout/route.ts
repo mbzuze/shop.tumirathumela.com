@@ -251,10 +251,22 @@ export async function POST(request: NextRequest) {
     try {
       order = await createOrderWith(generateOrderNumber());
     } catch (err) {
-      // orderNumber collision — regenerate once. Safe to retry because no
-      // payment has been created yet.
-      if (err instanceof CmsError && err.status === 409) {
+      // Both possible 409s from order creation are handled here, but only
+      // one of them is safe to retry blindly. Keying off err.status alone
+      // would retry an out-of-stock order with a fresh order number and
+      // get the identical rejection a second time, then crash uncaught.
+      if (err instanceof CmsError && err.code === "DUPLICATE_ORDER") {
+        // orderNumber collision — regenerate once. Safe to retry because no
+        // payment has been created yet.
         order = await createOrderWith(generateOrderNumber());
+      } else if (err instanceof CmsError && err.code === "INSUFFICIENT_STOCK") {
+        // The CMS's atomic, lock-based check is the real guarantee — this
+        // is the same response shape the advisory pre-check above already
+        // produces, so the checkout page's error handling needs no changes.
+        return NextResponse.json(
+          { error: "OUT_OF_STOCK", items: err.details?.items ?? [] },
+          { status: 409 }
+        );
       } else {
         throw err;
       }
