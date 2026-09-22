@@ -35,3 +35,13 @@ export function formatPrice(
     maximumFractionDigits: 2,
   }).format(finalAmount);
 }
+
+export function formatDiscountLabel(
+  discountType: "PERCENTAGE" | "FIXED",
+  discountValue: number,
+  currency: "ZAR" | "USD" = "ZAR"
+): string {
+  return discountType === "FIXED"
+    ? `${formatPrice(discountValue, currency)} off`
+    : `${discountValue}% off`;
+}

@@ -3,11 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getAddressById } from "@/lib/cms-client";
 import { editAddressAction } from "@/actions/editAddressAction";
-
-const ZA_PROVINCES = [
-  "Eastern Cape", "Free State", "Gauteng", "KwaZulu-Natal",
-  "Limpopo", "Mpumalanga", "Northern Cape", "North West", "Western Cape",
-];
+import { ZA_PROVINCES } from "@/lib/geo";
 
 export default async function EditAddressPage({
   params,

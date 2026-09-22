@@ -11,6 +11,22 @@ interface OrderPageProps {
   }>;
 }
 
+const STATUS_STYLES: Record<string, string> = {
+  PENDING: "bg-yellow-100 text-yellow-800",
+  PROCESSING: "bg-blue-100 text-blue-800",
+  COMPLETED: "bg-green-100 text-green-800",
+  CANCELLED: "bg-red-100 text-red-800",
+  REFUNDED: "bg-gray-100 text-gray-800",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: "Payment pending",
+  PROCESSING: "Processing",
+  COMPLETED: "Paid",
+  CANCELLED: "Cancelled",
+  REFUNDED: "Refunded",
+};
+
 export default async function OrderPage({ params }: OrderPageProps) {
   const { userId } = await auth();
 
@@ -45,8 +61,12 @@ export default async function OrderPage({ params }: OrderPageProps) {
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
             Order Details
           </h1>
-          <span className="px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-semibold">
-            Paid
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-semibold ${
+              STATUS_STYLES[order.status] ?? "bg-gray-100 text-gray-800"
+            }`}
+          >
+            {STATUS_LABELS[order.status] ?? order.status}
           </span>
         </div>
 
@@ -84,6 +104,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
               <p>{address.streetAddress}</p>
               <p>
                 {[address.city, address.province].filter(Boolean).join(", ")}
+                {address.postalCode ? ` ${address.postalCode}` : ""}
               </p>
             </div>
           </div>

@@ -12,11 +12,15 @@ export function OrderListClient({ orders }: { orders: any[] }) {
   const [activeTab, setActiveTab] = useState<"active" | "past">("active");
   const addItem = useBasketStore((state) => state.addItem);
 
+  // The CMS's Order.status enum is PENDING | PROCESSING | COMPLETED |
+  // CANCELLED | REFUNDED — there is no shipping/fulfillment stage beyond
+  // COMPLETED (paid). It belongs in "active": it's a real, recent order the
+  // customer will still be checking on, not one to bury under "Past".
   const activeOrders = orders.filter((o) =>
-    ["pending", "paid", "processing", "shipped"].includes(o.status?.toLowerCase())
+    ["pending", "processing", "completed"].includes(o.status?.toLowerCase())
   );
   const pastOrders = orders.filter((o) =>
-    ["delivered", "cancelled", "completed"].includes(o.status?.toLowerCase()) || !o.status
+    ["cancelled", "refunded"].includes(o.status?.toLowerCase()) || !o.status
   );
 
   const currentOrders = activeTab === "active" ? activeOrders : pastOrders;

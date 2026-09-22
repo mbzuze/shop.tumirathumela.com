@@ -1,83 +1,300 @@
 import { NextResponse, NextRequest } from "next/server";
-import { v4 as uuidv4 } from "uuid";
-import { createOrder } from "@/lib/cms-client";
+import { randomUUID } from "node:crypto";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { z } from "zod";
+import {
+  createOrder,
+  getAddressById,
+  getProductsByIds,
+  getActiveSaleByCouponCode,
+  attachCheckoutId,
+  cancelOrder,
+  CmsError,
+} from "@/lib/cms-client";
+import { imageUrl } from "@/lib/imageUrl";
+import { shippingCentsFor, isSpeedAvailable, type Country, type DeliverySpeed } from "@/lib/shipping";
+
+// The client sends ids, quantities, and choices only — never prices. Every
+// amount charged is computed here from the CMS's current data, never from
+// the request body. This closes the hole where a forged body could pay R1
+// for a full-price basket (the old route trusted a client-supplied `amount`
+// and per-item `price` outright).
+const AddressInputSchema = z
+  .object({
+    // Optional: the checkout page has never collected a separate recipient
+    // name for a one-off (not-saved-to-address-book) address — it reuses the
+    // signed-in account's name, filled in below from currentUser().
+    fullName: z.string().trim().min(1).max(200).optional(),
+    phone: z.string().trim().min(1).max(40),
+    streetAddress: z.string().trim().min(1).max(300),
+    buildingDetails: z.string().trim().max(200).optional(),
+    suburb: z.string().trim().max(120).optional(),
+    city: z.string().trim().min(1).max(120),
+    province: z.string().trim().max(120).optional(),
+    postalCode: z.string().trim().min(1).max(20),
+    country: z.enum(["ZA", "ZW"]),
+    deliveryInstructions: z.string().trim().max(500).optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.country === "ZA" && !val.province) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["province"],
+        message: "Province is required for South African addresses",
+      });
+    }
+  });
+
+const CheckoutBodySchema = z
+  .object({
+    items: z
+      .array(
+        z.object({
+          productId: z.string().min(1),
+          quantity: z.number().int().min(1).max(99),
+        })
+      )
+      .min(1)
+      .max(50),
+    addressId: z.string().min(1).optional(),
+    address: AddressInputSchema.optional(),
+    deliverySpeed: z.enum(["standard", "express"]),
+    couponCode: z.string().trim().max(50).optional(),
+  })
+  .refine((b) => Boolean(b.addressId) !== Boolean(b.address), {
+    message: "Provide exactly one of addressId or address",
+    path: ["addressId"],
+  });
+
+type ResolvedAddress = {
+  fullName: string;
+  phone: string;
+  streetAddress: string;
+  buildingDetails?: string;
+  suburb?: string;
+  city: string;
+  province?: string;
+  postalCode: string;
+  country: Country;
+  deliveryInstructions?: string;
+};
+
+function generateOrderNumber(): string {
+  return `ORD-${randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const requestBody = await request.json();
-    const { metadata, cancelUrl, failureUrl, successUrl, orderItems, subtotalAmount, shippingAmount, totalDiscount, amount } = requestBody;
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Sign in to check out" }, { status: 401 });
+    }
+    const me = await currentUser();
+    const customerEmail = me?.primaryEmailAddress?.emailAddress ?? me?.emailAddresses[0]?.emailAddress;
+    if (!customerEmail) {
+      return NextResponse.json({ error: "Your account has no email address on file" }, { status: 400 });
+    }
+    const customerName = `${me?.firstName ?? ""} ${me?.lastName ?? ""}`.trim() || "Customer";
 
-    const idempotencyKey = uuidv4();
-    const orderNumber = `ORD-${uuidv4().split('-')[0].toUpperCase()}`;
-    const modifiedSuccessUrl = `${successUrl}?order=${orderNumber}`;
+    const parsed = CheckoutBodySchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", issues: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+    const body = parsed.data;
 
-    // Call Yoco
-    const resp = await fetch("https://payments.yoco.com/api/checkouts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.YOCO_SECRET_KEY}`,
-        "Idempotency-Key": idempotencyKey,
-      },
-      body: JSON.stringify({
-        amount,
-        currency: "ZAR",
-        metadata: { ...metadata, orderNumber },
-        successUrl: modifiedSuccessUrl,
-        cancelUrl,
-        failureUrl,
-      }),
-    });
-
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      throw new Error(`Yoco API error: ${errorText}`);
+    // Resolve the shipping address. addressId is already ownership-scoped by
+    // getAddressById (it only searches this user's own addresses), so it
+    // doubles as the authorisation check — an id belonging to someone else
+    // simply won't be found.
+    let address: ResolvedAddress;
+    if (body.addressId) {
+      const saved = await getAddressById(body.addressId, userId);
+      if (!saved) {
+        return NextResponse.json({ error: "Address not found" }, { status: 403 });
+      }
+      address = {
+        fullName: saved.fullName,
+        phone: saved.phone,
+        streetAddress: saved.streetAddress,
+        buildingDetails: saved.buildingDetails ?? undefined,
+        suburb: saved.suburb ?? undefined,
+        city: saved.city,
+        province: saved.province ?? undefined,
+        postalCode: saved.postalCode,
+        country: saved.country === "ZW" ? "ZW" : "ZA",
+        deliveryInstructions: saved.deliveryInstructions ?? undefined,
+      };
+    } else {
+      address = { ...body.address!, fullName: body.address!.fullName || customerName };
     }
 
-    const json = await resp.json();
+    const deliverySpeed = body.deliverySpeed as DeliverySpeed;
+    if (!isSpeedAvailable(address.country, deliverySpeed)) {
+      return NextResponse.json(
+        { error: `${deliverySpeed} delivery is not available for ${address.country}` },
+        { status: 400 }
+      );
+    }
 
-    // Build order items from orderItems (mapped from cart)
-    const items = (orderItems || []).map((item: { productId?: string; name?: string; sku?: string; quantity?: number; price?: number; image?: string }) => ({
-      productId: item.productId || undefined,
-      name: item.name || 'Unknown',
-      sku: item.sku || undefined,
-      quantity: item.quantity ?? 1,
-      price: item.price ?? 0,
-      image: item.image || undefined,
-    }))
+    // Reprice entirely from trusted CMS data. Any id the CMS doesn't return
+    // (unpublished, deleted, or never existed) fails the whole checkout
+    // rather than silently pricing that line at 0.
+    const ids = [...new Set(body.items.map((i) => i.productId))];
+    const products = await getProductsByIds(ids);
+    const byId = new Map(products.map((p) => [p._id, p]));
+    const missingProductIds = ids.filter((id) => !byId.has(id));
+    if (missingProductIds.length > 0) {
+      return NextResponse.json(
+        { error: "CART_STALE", missingProductIds },
+        { status: 409 }
+      );
+    }
 
-    const addressParts = metadata.shippingAddress?.split(', ') || []
+    const lines = body.items.map((item) => {
+      const p = byId.get(item.productId)!;
+      const unitCents = Math.round((p.price ?? 0) * 100);
+      return {
+        productId: p._id,
+        name: p.name || "Product",
+        sku: p.sku,
+        image: p.images?.[0] ? imageUrl(p.images[0]).url() : undefined,
+        quantity: item.quantity,
+        unitCents,
+        lineCents: unitCents * item.quantity,
+      };
+    });
+    const subtotalCents = lines.reduce((sum, l) => sum + l.lineCents, 0);
 
-    // Create order in TumiraCMS
-    const order = await createOrder({
-      orderNumber,
-      customerEmail: metadata.customerEmail,
-      customerName: metadata.customerName,
-      customerPhone: metadata.shippingPhone || undefined,
-      clerkUserId: metadata.userId || undefined,
-      items,
-      subtotal: subtotalAmount ? subtotalAmount / 100 : amount / 100,
-      discountAmount: totalDiscount ? totalDiscount / 100 : 0,
-      shippingCost: shippingAmount ? shippingAmount / 100 : 0,
-      total: amount / 100,
-      currency: 'ZAR',
-      paymentProvider: 'YOCO',
-      paymentId: json.id,
-      couponCode: metadata.couponCode || undefined,
-      shippingAddress: {
-        fullName: metadata.customerName,
-        streetAddress: addressParts[0] ?? metadata.shippingAddress ?? '',
-        city: addressParts[1] ?? 'Unknown',
-        province: addressParts[addressParts.length - 1] ?? '',
-        country: 'ZA',
-        phone: metadata.shippingPhone ?? '',
-      },
-    })
+    // Coupon: recomputed here from discountType/discountValue, never from a
+    // client-supplied amount. A code that was valid when added to the cart
+    // but has since expired or been exhausted is dropped rather than
+    // blocking the purchase over a marketing discount.
+    let discountCents = 0;
+    let couponCode: string | undefined;
+    if (body.couponCode) {
+      const sale = await getActiveSaleByCouponCode(body.couponCode);
+      if (sale) {
+        const applicable = sale.applicableProductIds ?? [];
+        const baseCents =
+          applicable.length === 0
+            ? subtotalCents
+            : lines.reduce((sum, l) => (applicable.includes(l.productId) ? sum + l.lineCents : sum), 0);
+        const meetsMinimum =
+          !sale.minimumOrderValue || subtotalCents / 100 >= sale.minimumOrderValue;
+        if (meetsMinimum) {
+          discountCents =
+            sale.discountType === "FIXED"
+              ? Math.min(Math.round(sale.discountValue * 100), baseCents)
+              : Math.round((baseCents * sale.discountValue) / 100);
+          couponCode = sale.couponCode ?? body.couponCode;
+        }
+      }
+    }
 
-    return NextResponse.json({ ...json, orderId: order.id, orderNumber: order.orderNumber })
+    const shippingCents = shippingCentsFor(address.country, deliverySpeed);
+    const totalCents = Math.max(0, subtotalCents - discountCents) + shippingCents;
+
+    // Order first, then Yoco. A failure below leaves a recoverable CANCELLED
+    // order rather than a customer charged with no order on file.
+    const createOrderWith = (num: string) =>
+      createOrder({
+        orderNumber: num,
+        customerEmail,
+        customerName,
+        customerPhone: address.phone,
+        clerkUserId: userId,
+        items: lines.map((l) => ({
+          productId: l.productId,
+          name: l.name,
+          sku: l.sku,
+          quantity: l.quantity,
+          price: l.unitCents / 100,
+          image: l.image,
+        })),
+        subtotal: subtotalCents / 100,
+        discountAmount: discountCents / 100,
+        shippingCost: shippingCents / 100,
+        total: totalCents / 100,
+        currency: "ZAR",
+        paymentProvider: "YOCO",
+        couponCode,
+        shippingAddress: address,
+      });
+
+    let order;
+    try {
+      order = await createOrderWith(generateOrderNumber());
+    } catch (err) {
+      // orderNumber collision — regenerate once. Safe to retry because no
+      // payment has been created yet.
+      if (err instanceof CmsError && err.status === 409) {
+        order = await createOrderWith(generateOrderNumber());
+      } else {
+        throw err;
+      }
+    }
+
+    const base = process.env.NEXT_PUBLIC_BASE_URL;
+    let yocoJson: { id: string; redirectUrl?: string };
+    try {
+      const resp = await fetch("https://payments.yoco.com/api/checkouts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.YOCO_SECRET_KEY}`,
+          // Stable per order, not a fresh uuid per request — a retried or
+          // double-clicked submission returns the same Yoco checkout instead
+          // of minting a second one for the same order.
+          "Idempotency-Key": order.id,
+        },
+        body: JSON.stringify({
+          amount: totalCents,
+          currency: "ZAR",
+          // Metadata values must be strings for Yoco. The webhook reads
+          // metadata.orderNumber — keep that key exactly.
+          metadata: { orderNumber: order.orderNumber, orderId: order.id, clerkUserId: userId },
+          successUrl: `${base}/success?order=${order.orderNumber}`,
+          cancelUrl: `${base}/checkout`,
+          failureUrl: `${base}/checkout`,
+        }),
+      });
+      if (!resp.ok) {
+        throw new Error(`Yoco API error: ${await resp.text()}`);
+      }
+      yocoJson = await resp.json();
+      if (!yocoJson.redirectUrl) {
+        throw new Error("Yoco returned no redirectUrl");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      console.error("[checkout] yoco failed after order", order.orderNumber, err);
+      await cancelOrder(order.id, `Payment initiation failed: ${message}`).catch((compErr) =>
+        console.error("[checkout] COMPENSATION FAILED for", order.orderNumber, compErr)
+      );
+      return NextResponse.json(
+        { error: "We could not start the payment. Please try again." },
+        { status: 502 }
+      );
+    }
+
+    // Not worth failing an already-payable checkout over — the webhook keys
+    // off metadata.orderNumber and doesn't need this; only the /api/orders/verify
+    // fallback does.
+    await attachCheckoutId(order.id, yocoJson.id).catch((err) =>
+      console.error("[checkout] failed to attach checkoutId for", order.orderNumber, err)
+    );
+
+    return NextResponse.json({
+      redirectUrl: yocoJson.redirectUrl,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+    });
   } catch (err: unknown) {
-    console.error('[checkout]', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 400 })
+    console.error("[checkout]", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

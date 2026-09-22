@@ -12,13 +12,15 @@ import { formatPrice } from "@/lib/utils";
 import { imageUrl } from "@/lib/imageUrl";
 import type { CmsAddress as CustomerAddress } from "@/lib/cms-client";
 import { getMyDefaultAddressAction } from "@/actions/addressActions";
+import { ZA_PROVINCES } from "@/lib/geo";
+import { SHIPPING_ZAR, vatIncludedCents, type Country, type DeliverySpeed } from "@/lib/shipping";
 
 type Step = 1 | 2 | 3;
 
-const DELIVERY_SPEEDS = [
-  { id: "standard", label: "Standard Delivery (3–5 business days)", price: 0 },
-  { id: "express", label: "Express Delivery (1–2 business days)", price: 99 },
-];
+const SPEED_LABELS: Record<DeliverySpeed, string> = {
+  standard: "Standard Delivery (3–5 business days)",
+  express: "Express Delivery (1–2 business days)",
+};
 
 function StepHeader({
   step,
@@ -96,14 +98,31 @@ export default function CheckoutPage() {
   const [streetAddress, setStreetAddress] = useState("");
   const [city, setCity] = useState(useLocationStore.getState().city || "");
   const [postalCode, setPostalCode] = useState("");
+  const [province, setProvince] = useState("");
+  // Where the parcel is delivered — distinct from useLocationStore's country,
+  // which only governs which currency prices are *displayed* in. Defaults
+  // from the visitor's detected location but the shopper can change it.
+  const [deliveryCountry, setDeliveryCountry] = useState<Country>(
+    useLocationStore.getState().country === "ZW" ? "ZW" : "ZA"
+  );
   const [phone, setPhone] = useState("");
   const [usingSaved, setUsingSaved] = useState(false);
 
-  // Step 2 — Payment
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "eft">("card");
-
   // Step 3 — Delivery speed
-  const [deliverySpeed, setDeliverySpeed] = useState(DELIVERY_SPEEDS[0].id);
+  const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed>("standard");
+
+  const speedOptions = (Object.keys(SHIPPING_ZAR[deliveryCountry]) as DeliverySpeed[]).filter(
+    (s) => SHIPPING_ZAR[deliveryCountry][s] !== null
+  );
+
+  // If switching delivery country makes the selected speed unavailable
+  // (express is not offered for ZW), fall back to standard.
+  useEffect(() => {
+    if (!speedOptions.includes(deliverySpeed)) {
+      setDeliverySpeed("standard");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deliveryCountry]);
 
   // Auth gate
   useEffect(() => {
@@ -122,6 +141,8 @@ export default function CheckoutPage() {
           setStreetAddress(addr.streetAddress);
           setCity(addr.city);
           setPostalCode(addr.postalCode);
+          setProvince(addr.province || "");
+          setDeliveryCountry(addr.country === "ZW" ? "ZW" : "ZA");
           setPhone(addr.phone);
           setUsingSaved(true);
         }
@@ -130,17 +151,22 @@ export default function CheckoutPage() {
   }, [isLoaded, user]);
 
   const subtotal = getTotalPrice();
-  const shippingBase = country === "ZA" ? 100 : 350;
-  const speedExtra =
-    DELIVERY_SPEEDS.find((s) => s.id === deliverySpeed)?.price ?? 0;
-  const shipping = shippingBase + speedExtra;
-  const tax = subtotal * 0.15;
+  // Rate is null only for a combination speedOptions already excludes, but
+  // the fallback keeps this a plain number for arithmetic below.
+  const shipping = SHIPPING_ZAR[deliveryCountry][deliverySpeed] ?? 0;
+  // Listed prices are VAT-inclusive — VAT is never added on top. This is
+  // only ever the included component of the total, for display.
   const discountAmount = appliedCoupon?.discountAmount || 0;
-  const total = subtotal + shipping + tax - discountAmount;
+  const total = Math.max(0, subtotal - discountAmount) + shipping;
+  const vatIncluded = vatIncludedCents(Math.round(total * 100)) / 100;
 
   const handleConfirmAddress = () => {
     if (!streetAddress || !city || !postalCode || !phone) {
       setError("Please fill in all required address fields.");
+      return;
+    }
+    if (deliveryCountry === "ZA" && !province) {
+      setError("Please select a province.");
       return;
     }
     setError(null);
@@ -157,55 +183,25 @@ export default function CheckoutPage() {
     setError(null);
 
     try {
-      const email =
-        user?.emailAddresses[0]?.emailAddress || "guest@tumirathumela.com";
-      const customerName = user
-        ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
-        : "Customer";
-
-      const orderItems = items.map((item) => ({
-        productId: item.product._id,
-        name: item.product.name || "Product",
-        sku: item.product.sku || undefined,
-        quantity: item.quantity,
-        price: item.product.price || 0,
-        image: item.product.images?.[0]
-          ? imageUrl(item.product.images[0]).url()
-          : undefined,
-      }));
-
+      // Ids, quantities and choices only — the server reprices everything
+      // from trusted CMS data rather than any amount computed here. `total`,
+      // `subtotal` etc. below are the client's own estimate for display; they
+      // are never sent as the amount to charge.
       const payload = {
-        amount: Math.round(total * 100),
-        currency: "ZAR",
-        metadata: {
-          userId: user?.id,
-          customerName,
-          customerEmail: email,
-          shippingAddress: `${streetAddress}, ${city}, ${postalCode}, ${
-            country === "ZA" ? "South Africa" : "Zimbabwe"
-          }`,
-          shippingPhone: phone,
-          deliverySpeed,
-          paymentMethod,
-          totalTax: Math.round(tax * 100),
-          couponCode: appliedCoupon?.code || "",
-          discountAmount: Math.round(discountAmount * 100),
-        },
-        lineItems: items.map((item) => ({
-          name: item.product.name || "Product",
+        items: items.map((item) => ({
+          productId: item.product._id,
           quantity: item.quantity,
-          unitPrice: Math.round((item.product.price || 0) * 100),
-          totalAmount:
-            Math.round((item.product.price || 0) * 100) * item.quantity,
-          description: `SKU: ${item.product.sku || item.product._id}`,
         })),
-        orderItems,
-        subtotalAmount: Math.round(subtotal * 100),
-        shippingAmount: Math.round(shipping * 100),
-        totalDiscount: Math.round(discountAmount * 100),
-        successUrl: `${window.location.origin}/success`,
-        cancelUrl: `${window.location.origin}/checkout`,
-        failureUrl: `${window.location.origin}/checkout`,
+        address: {
+          phone,
+          streetAddress,
+          city,
+          province: deliveryCountry === "ZA" ? province : undefined,
+          postalCode,
+          country: deliveryCountry,
+        },
+        deliverySpeed,
+        couponCode: appliedCoupon?.code || undefined,
       };
 
       const res = await fetch("/api/checkout", {
@@ -215,7 +211,14 @@ export default function CheckoutPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create checkout");
+      if (!res.ok) {
+        if (data.error === "CART_STALE") {
+          throw new Error(
+            "One or more items in your basket are no longer available. Please remove them and try again."
+          );
+        }
+        throw new Error(data.issues?.[0]?.message || data.error || "Failed to create checkout");
+      }
       if (data.redirectUrl) {
         window.location.href = data.redirectUrl;
       } else {
@@ -344,16 +347,40 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-[#0F1111] mb-1">
-                    Country
-                  </label>
-                  <input
-                    type="text"
-                    value={country === "ZA" ? "South Africa" : "Zimbabwe"}
-                    disabled
-                    className="w-full border border-[#ddd] rounded-sm px-3 py-2 text-sm bg-[#F7F8F8] text-[#565959]"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-[#0F1111] mb-1">
+                      Country <span className="text-red-600">*</span>
+                    </label>
+                    <select
+                      value={deliveryCountry}
+                      onChange={(e) => setDeliveryCountry(e.target.value as Country)}
+                      className="w-full border border-[#888c8c] rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#e77600] bg-white"
+                    >
+                      <option value="ZA">South Africa</option>
+                      <option value="ZW">Zimbabwe</option>
+                    </select>
+                  </div>
+                  {deliveryCountry === "ZA" && (
+                    <div>
+                      <label className="block text-sm font-medium text-[#0F1111] mb-1">
+                        Province <span className="text-red-600">*</span>
+                      </label>
+                      <select
+                        value={province}
+                        onChange={(e) => setProvince(e.target.value)}
+                        required
+                        className="w-full border border-[#888c8c] rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#e77600] bg-white"
+                      >
+                        <option value="">Select…</option>
+                        {ZA_PROVINCES.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -390,68 +417,25 @@ export default function CheckoutPage() {
               step={2}
               activeStep={activeStep}
               title="2  Payment method"
-              summary={
-                activeStep > 2
-                  ? paymentMethod === "card"
-                    ? "Card via Yoco"
-                    : "EFT / Bank Transfer"
-                  : undefined
-              }
+              summary={activeStep > 2 ? "Card via Yoco" : undefined}
               onEdit={() => setActiveStep(2)}
             />
 
             {activeStep === 2 && (
               <div className="p-5 space-y-4">
-                <div className="space-y-3">
-                  <label
-                    className={`flex items-center gap-3 border rounded-sm p-3 cursor-pointer transition-colors ${
-                      paymentMethod === "card"
-                        ? "border-[#e77600] ring-1 ring-[#e77600] bg-[#fffbf0]"
-                        : "border-[#c8c8c8] hover:border-[#007185]"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="card"
-                      checked={paymentMethod === "card"}
-                      onChange={() => setPaymentMethod("card")}
-                      className="accent-[#e77600]"
-                    />
-                    <div>
-                      <p className="text-sm font-bold text-[#0F1111]">
-                        Credit / Debit Card
-                      </p>
-                      <p className="text-xs text-[#565959]">
-                        Secured by Yoco — Visa, Mastercard accepted
-                      </p>
-                    </div>
-                  </label>
-
-                  <label
-                    className={`flex items-center gap-3 border rounded-sm p-3 cursor-pointer transition-colors ${
-                      paymentMethod === "eft"
-                        ? "border-[#e77600] ring-1 ring-[#e77600] bg-[#fffbf0]"
-                        : "border-[#c8c8c8] hover:border-[#007185]"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="eft"
-                      checked={paymentMethod === "eft"}
-                      onChange={() => setPaymentMethod("eft")}
-                      className="accent-[#e77600]"
-                    />
-                    <div>
-                      <p className="text-sm font-bold text-[#0F1111]">
-                        EFT / Bank Transfer
-                      </p>
-                      <p className="text-xs text-[#565959]">
-                        Manual bank transfer — order held pending payment
-                      </p>
-                    </div>
-                  </label>
+                {/* Card via Yoco is the only payment method this store offers —
+                    an "EFT / Bank Transfer" option used to sit here but always
+                    routed to Yoco regardless, which misrepresented how the
+                    order would actually be paid. */}
+                <div className="flex items-center gap-3 border border-[#e77600] ring-1 ring-[#e77600] bg-[#fffbf0] rounded-sm p-3">
+                  <div>
+                    <p className="text-sm font-bold text-[#0F1111]">
+                      Credit / Debit Card
+                    </p>
+                    <p className="text-xs text-[#565959]">
+                      Secured by Yoco — Visa, Mastercard accepted
+                    </p>
+                  </div>
                 </div>
 
                 <button
@@ -512,11 +496,13 @@ export default function CheckoutPage() {
                     Choose your delivery speed:
                   </p>
                   <div className="space-y-2">
-                    {DELIVERY_SPEEDS.map((speed) => (
+                    {speedOptions.map((id) => {
+                      const price = SHIPPING_ZAR[deliveryCountry][id]!;
+                      return (
                       <label
-                        key={speed.id}
+                        key={id}
                         className={`flex items-center gap-3 border rounded-sm p-3 cursor-pointer text-sm transition-colors ${
-                          deliverySpeed === speed.id
+                          deliverySpeed === id
                             ? "border-[#e77600] ring-1 ring-[#e77600] bg-[#fffbf0]"
                             : "border-[#c8c8c8] hover:border-[#007185]"
                         }`}
@@ -524,19 +510,18 @@ export default function CheckoutPage() {
                         <input
                           type="radio"
                           name="delivery"
-                          value={speed.id}
-                          checked={deliverySpeed === speed.id}
-                          onChange={() => setDeliverySpeed(speed.id)}
+                          value={id}
+                          checked={deliverySpeed === id}
+                          onChange={() => setDeliverySpeed(id)}
                           className="accent-[#e77600]"
                         />
-                        <span className="flex-1">{speed.label}</span>
+                        <span className="flex-1">{SPEED_LABELS[id]}</span>
                         <span className="font-bold text-[#007600]">
-                          {speed.price === 0
-                            ? "FREE"
-                            : formatPrice(speed.price, currency)}
+                          {price === 0 ? "FREE" : formatPrice(price, currency)}
                         </span>
                       </label>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -598,8 +583,8 @@ export default function CheckoutPage() {
                 <span>{formatPrice(shipping, currency)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#565959]">VAT (15%):</span>
-                <span>{formatPrice(tax, currency)}</span>
+                <span className="text-[#565959]">VAT (15%, included):</span>
+                <span>{formatPrice(vatIncluded, currency)}</span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-[#007600]">

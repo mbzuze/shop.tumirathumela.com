@@ -8,8 +8,9 @@ export async function validateCoupon(code: string) {
     if (sale) {
       return {
         isValid: true,
-        discountAmount: sale.discountAmount, // percentage
-        minimumOrderValue: null,
+        discountType: sale.discountType,
+        discountValue: sale.discountValue,
+        minimumOrderValue: sale.minimumOrderValue,
         code: sale.couponCode,
         applicableProducts: sale.applicableProductIds || [],
       };

@@ -20,13 +20,17 @@ interface BasketState {
 
   appliedCoupon: {
     code: string;
-    discountPercent: number;
-    discountAmount: number;
+    discountType: "PERCENTAGE" | "FIXED";
+    discountValue: number;
+    discountAmount: number; // computed ZAR amount, for display only — the
+                             // server recomputes this from discountType/discountValue
+                             // at checkout rather than trusting it
     applicableProductIds: string[];
   } | null;
   applyCoupon: (couponData: {
     code: string;
-    discountPercent: number;
+    discountType: "PERCENTAGE" | "FIXED";
+    discountValue: number;
     discountAmount: number;
     applicableProductIds: string[];
   }) => void;

@@ -2,7 +2,7 @@
 
 import { validateCoupon } from "@/actions/validateCoupon";
 import { imageUrl } from "@/lib/imageUrl";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatDiscountLabel } from "@/lib/utils";
 import useBasketStore from "@/store/store";
 import useLocationStore from "@/store/locationStore";
 import { SignInButton, useAuth, useUser } from "@clerk/nextjs";
@@ -33,7 +33,7 @@ function CartPage() {
   const [isClient, setClient] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [couponCode, setCouponCode] = useState("");
-  const [discount, setDiscount] = useState(0);
+  const [discountRule, setDiscountRule] = useState<{ type: "PERCENTAGE" | "FIXED"; value: number } | null>(null);
   const [couponError, setCouponError] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [applicableProducts, setApplicableProducts] = useState<string[]>([]);
@@ -71,29 +71,32 @@ function CartPage() {
     setCouponError("");
     const result = await validateCoupon(couponCode);
     if (result.isValid) {
-      setDiscount(result.discountAmount!);
+      const discountType = result.discountType!;
+      const discountValue = result.discountValue!;
+      setDiscountRule({ type: discountType, value: discountValue });
       setAppliedCoupon(result.code!);
       setApplicableProducts(result.applicableProducts || []);
 
       const tPrice = useBasketStore.getState().getTotalPrice();
-      let dValue = 0;
-      if (!result.applicableProducts || result.applicableProducts.length === 0) {
-        dValue = (tPrice * result.discountAmount!) / 100;
-      } else {
-        const discountableAmount = groupedItems.reduce((acc, item) => {
-          if (result.applicableProducts!.includes(item.product._id)) {
-            return acc + (item.product.price ?? 0) * item.quantity;
-          }
-          return acc;
-        }, 0);
-        dValue = (discountableAmount * result.discountAmount!) / 100;
-      }
+      const applicable = result.applicableProducts || [];
+      const base =
+        applicable.length === 0
+          ? tPrice
+          : groupedItems.reduce((acc, item) => {
+              if (applicable.includes(item.product._id)) {
+                return acc + (item.product.price ?? 0) * item.quantity;
+              }
+              return acc;
+            }, 0);
+      const dValue =
+        discountType === "FIXED" ? Math.min(discountValue, base) : (base * discountValue) / 100;
 
       applyCoupon({
         code: result.code!,
-        discountPercent: result.discountAmount!,
+        discountType,
+        discountValue,
         discountAmount: dValue,
-        applicableProductIds: result.applicableProducts || []
+        applicableProductIds: applicable,
       });
 
       setCouponCode("");
@@ -110,16 +113,20 @@ function CartPage() {
   const totalPrice = useBasketStore.getState().getTotalPrice();
 
   const calculateDiscount = () => {
-    if (discount === 0) return 0;
-    if (applicableProducts.length === 0) return (totalPrice * discount) / 100;
-    const discountableAmount = groupedItems.reduce((acc, item) => {
-      if (applicableProducts.includes(item.product._id)) {
-        return acc + (item.product.price ?? 0) * item.quantity;
-      }
-      return acc;
-    }, 0);
-    return (discountableAmount * discount) / 100;
+    if (!discountRule) return 0;
+    const base =
+      applicableProducts.length === 0
+        ? totalPrice
+        : groupedItems.reduce((acc, item) => {
+            if (applicableProducts.includes(item.product._id)) {
+              return acc + (item.product.price ?? 0) * item.quantity;
+            }
+            return acc;
+          }, 0);
+    return discountRule.type === "FIXED" ? Math.min(discountRule.value, base) : (base * discountRule.value) / 100;
   };
+
+  const discountLabel = discountRule ? formatDiscountLabel(discountRule.type, discountRule.value, currency) : "";
 
   const discountValue = calculateDiscount();
   const finalPrice = Math.max(0, totalPrice - discountValue);
@@ -185,7 +192,7 @@ function CartPage() {
 
                       {isDiscounted && (
                         <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded mb-2">
-                          <Tag className="w-3 h-3" /> {discount}% off with code "{appliedCoupon}"
+                          <Tag className="w-3 h-3" /> {discountLabel} with code "{appliedCoupon}"
                         </span>
                       )}
 
@@ -333,7 +340,7 @@ function CartPage() {
                 {couponError && <p className="text-red-500 text-xs mt-1">{couponError}</p>}
                 {appliedCoupon && (
                   <p className="text-green-600 text-xs mt-1 flex items-center gap-1">
-                    <Tag className="w-3 h-3" /> "{appliedCoupon}" applied ({discount}% off
+                    <Tag className="w-3 h-3" /> "{appliedCoupon}" applied ({discountLabel}
                     {applicableProducts.length > 0 ? " on selected items" : ""})
                   </p>
                 )}

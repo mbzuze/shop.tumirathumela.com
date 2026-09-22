@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const CMS_BASE = process.env.CMS_API_URL ?? 'https://admin.tumirathumela.com'
-const CMS_API_KEY = process.env.CMS_API_KEY ?? ''
+import { getOrderByNumber, markOrderPaid, CmsError } from "@/lib/cms-client";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,37 +8,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Order number required" }, { status: 400 });
     }
 
-    // Fetch order from TumiraCMS
-    const orderRes = await fetch(`${CMS_BASE}/api/cms/v1/orders/${orderNumber}`, {
-      headers: { 'X-CMS-API-Key': CMS_API_KEY },
-      cache: 'no-store',
-    })
-
-    if (!orderRes.ok) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    let order;
+    try {
+      order = await getOrderByNumber(orderNumber);
+    } catch (err) {
+      if (err instanceof CmsError && err.status === 404) {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+      throw err;
     }
-
-    const { data: order } = await orderRes.json()
 
     if (order.status === "COMPLETED" || order.status === "PROCESSING") {
       return NextResponse.json({ success: true, status: order.status });
     }
 
-    // Fall back to Yoco API verification if still pending
-    if (order.paymentId) {
-      const yocoRes = await fetch(`https://payments.yoco.com/api/checkouts/${order.paymentId}`, {
+    // Fall back to asking Yoco directly if the webhook hasn't landed yet.
+    // checkoutId is the id created by /api/checkout; paymentId falls back
+    // for orders placed before that column existed.
+    const checkoutId = order.checkoutId ?? order.paymentId;
+    if (checkoutId) {
+      const yocoRes = await fetch(`https://payments.yoco.com/api/checkouts/${checkoutId}`, {
         headers: { Authorization: `Bearer ${process.env.YOCO_SECRET_KEY}` },
       });
 
       if (yocoRes.ok) {
         const checkout = await yocoRes.json();
-        if (checkout.status === "successful" || checkout.status === "paid") {
-          // Update order via CMS admin API
-          await fetch(`${CMS_BASE}/api/cms/v1/admin/orders/${order.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CMS-API-Key': CMS_API_KEY },
-            body: JSON.stringify({ status: 'COMPLETED' }),
-          })
+        // Confirmed against Yoco's Checkout API docs: status is one of
+        // created/started/processing/completed — not "successful"/"paid",
+        // which the previous version of this check compared against and
+        // could never have matched.
+        if (checkout.status === "completed") {
+          await markOrderPaid(order.id, checkout.paymentId ?? checkoutId);
           return NextResponse.json({ success: true, status: "COMPLETED" });
         }
       }
@@ -48,7 +46,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: false, status: order.status });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal server error'
+    console.error("[orders/verify]", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

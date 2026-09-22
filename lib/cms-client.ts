@@ -208,6 +208,18 @@ function normProduct(p: RawProduct): Product {
   return normalized as unknown as Product
 }
 
+// Server-side checkout repricing: fetch exactly these products by id, with
+// trusted current prices, in one batched request. Deliberately does NOT
+// follow this file's usual try/catch -> return [] convention — an empty
+// array here would let checkout price the whole basket at R0, so a CMS
+// failure must propagate and fail the checkout route loudly instead.
+export const getProductsByIds = async (ids: string[]): Promise<Product[]> => {
+  if (ids.length === 0) return []
+  const qs = ids.map(encodeURIComponent).join(',')
+  const products = await cmsGet<RawProduct[]>(`/api/cms/v1/products?ids=${qs}`, { revalidate: 0 })
+  return (products ?? []).map(normProduct)
+}
+
 export const getAllProducts = async (params?: { featured?: boolean; page?: number; pageSize?: number }): Promise<Product[]> => {
   try {
     const qs = new URLSearchParams()
@@ -481,11 +493,13 @@ export const getHomepageSections = async (locale?: 'ZA' | 'ZW'): Promise<Homepag
 
 export interface CmsSale {
   id: string
-  title: string
+  name: string
   couponCode: string | null
-  discountAmount: number // percentage
+  discountType: "PERCENTAGE" | "FIXED"
+  discountValue: number
+  minimumOrderValue: number | null
   description: string | null
-  validUntil: string | null
+  endsAt: string | null
   applicableProductIds: string[]
 }
 
@@ -528,6 +542,7 @@ export interface CmsOrder {
   currency: string
   couponCode: string | null
   paymentProvider: string
+  checkoutId: string | null
   paymentId: string | null
   orderDate: string
   updatedAt: string
@@ -574,7 +589,10 @@ export const createOrder = async (order: {
   customerEmail: string
   customerName: string
   customerPhone?: string
-  clerkUserId?: string
+  // Required, not optional: checkout now requires a signed-in Clerk session
+  // (see app/api/checkout/route.ts), and the CMS schema itself rejects an
+  // empty clerkUserId.
+  clerkUserId: string
   items: { productId?: string; name: string; sku?: string; quantity: number; price: number; image?: string }[]
   subtotal: number
   discountAmount?: number
@@ -587,6 +605,34 @@ export const createOrder = async (order: {
   shippingAddress: Record<string, unknown>
 }): Promise<CmsOrder> => {
   return cmsPost<CmsOrder>('/api/cms/v1/orders', order)
+}
+
+export const getOrderByNumber = async (orderNumber: string): Promise<CmsOrder> => {
+  return cmsGet<CmsOrder>(`/api/cms/v1/orders/${encodeURIComponent(orderNumber)}`, { revalidate: 0 })
+}
+
+// The next three are server-to-server only (webhook, order-verify, and
+// checkout's own compensation path) — they authenticate with CMS_ADMIN_KEY,
+// never exposed to the browser.
+
+export const attachCheckoutId = async (orderId: string, checkoutId: string): Promise<{ id: string }> => {
+  return cmsPatch<{ id: string }>(`/api/cms/v1/admin/orders/${orderId}`, { checkoutId }, { admin: true })
+}
+
+export const markOrderPaid = async (orderId: string, paymentId: string): Promise<{ id: string; status: string }> => {
+  return cmsPatch<{ id: string; status: string }>(
+    `/api/cms/v1/admin/orders/${orderId}`,
+    { status: 'COMPLETED', paymentId },
+    { admin: true }
+  )
+}
+
+export const cancelOrder = async (orderId: string, notes: string): Promise<{ id: string }> => {
+  return cmsPatch<{ id: string }>(
+    `/api/cms/v1/admin/orders/${orderId}`,
+    { status: 'CANCELLED', notes: notes.slice(0, 1000) },
+    { admin: true }
+  )
 }
 
 // ── Customer Addresses ────────────────────────────────────────────────────────
